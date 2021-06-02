@@ -1,9 +1,18 @@
 from ..sql.functions import Column
+import functools
+
+def wrap_dataframe(func):
+    @functools.wraps(func)
+    def f(*args, **kwargs):
+        df = func(*args, **kwargs)
+        return DataFrameWrapper(df)
+    return f
 
 class DataFrameWrapper:
     def __init__(self, df):
         self.df = df
 
+    @wrap_dataframe
     def filter(self, col):
         df = self.df
         if isinstance(col, Column):
@@ -14,6 +23,7 @@ class DataFrameWrapper:
         else:
             raise NotImplementedError
 
+    @wrap_dataframe
     def select(self, *cols):
         df = self.df
         col_names = []
@@ -29,3 +39,6 @@ class DataFrameWrapper:
 
     def groupBy(self, *cols):
         raise NotImplementedError
+    
+    def toPandas(self):
+        return self._df
