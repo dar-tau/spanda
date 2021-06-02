@@ -41,4 +41,4 @@ class DataFrameWrapper:
         raise NotImplementedError
     
     def toPandas(self):
-        return self._df
+        return self.df
