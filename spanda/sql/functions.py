@@ -1,8 +1,7 @@
 import math
 
 # helper functions
-_min = min
-_max = max
+import pandas as pd
 
 
 def _elementwise_apply(f):
@@ -38,11 +37,11 @@ def tan(col):
 
 
 # aggregate functions
-def min(col):
+def _min(col):
     return AggColumn(name="MIN", orig_col=col, op=lambda x: x.min())
 
 
-def max(col):
+def _max(col):
     return AggColumn(name="MAX", orig_col=col, op=lambda x: x.max())
 
 
@@ -55,7 +54,10 @@ class Column:
     def __init__(self, name):
         self.name = name
         self.op = lambda df: df[name]
-    
+
+    def setOp(self, op):
+        self.op = op
+
     @staticmethod
     def getName(col):
         if isinstance(col, Column):
@@ -146,3 +148,23 @@ class AggColumn:
     @staticmethod
     def _apply(agg_col, df):
         return agg_col.op(Column._apply(agg_col.orig_col, df))
+
+    def over(self, window_spec):
+        def f(df):
+            inputs = Column._apply(self.orig_col, df)
+            # in the following, row2grp represents the representative group of each row, while grp2rows is a dictionary
+            # of all rows that the group aggregates over. possibly not intuitive but group may include rows that are
+            # not represented by this group (for example if we apply lead(...) we aggregate over the next row which is
+            # not represented by the current group)
+            row2grp, grp2rows = window_spec._get_group_data(df)
+            print((row2grp, grp2rows))
+            grp_agg_val = {grp: self.op(inputs.loc[vals]) for grp, vals in grp2rows.items()}
+            data = {row_idx: grp_agg_val[grp_name] for row_idx, grp_name in row2grp.items()}
+            return pd.Series(data=data, index=inputs.index)
+        col = Column(name=f"{AggColumn.getName(self)} OVER {window_spec._name}")
+        col.setOp(f)
+        return col
+
+
+min = _min
+max = _max
