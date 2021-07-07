@@ -1,7 +1,10 @@
 import math
 
-
 # helper functions
+_min = min
+_max = max
+
+
 def _elementwise_apply(f):
     def f_elementwise(x):
         return x.apply(f)
@@ -32,6 +35,19 @@ def sin(col):
 
 def tan(col):
     return col._simpleUnaryTransformColumn("TAN ", _elementwise_apply(math.tan))
+
+
+# aggregate functions
+def min(col):
+    return AggColumn(name="MIN", orig_col=col, op=lambda x: x.min())
+
+
+def max(col):
+    return AggColumn(name="MAX", orig_col=col, op=lambda x: x.max())
+
+
+def mean(col):
+    return AggColumn(name="MEAN", orig_col=col, op=lambda x: x.mean())
 
 
 # classes
@@ -111,3 +127,22 @@ class Column:
 
     def __invert__(self, other): 
         return self._simpleUnaryTransformColumn('NOT ', lambda x: not x)
+
+
+class AggColumn:
+    def __init__(self, name, orig_col, op):
+        self.name = name
+        self.orig_col = orig_col
+        self.op = op
+
+    def alias(self, name):
+        # TODO: might want to clone orig_col and op (maybe also in Column)
+        return AggColumn(name=name, orig_col=self.orig_col, op=self.op)
+
+    @staticmethod
+    def getName(agg_col):
+        return f"{agg_col.name} ({Column.getName(agg_col.orig_col)})"
+
+    @staticmethod
+    def _apply(agg_col, df):
+        return agg_col.op(Column._apply(agg_col.orig_col, df))
