@@ -30,11 +30,12 @@ class DataFrameWrapper:
         for col in cols:
             if isinstance(col, Column):
                 df = df.assign(**{col.name: Column._apply(col, df)})
+                col_names.append(col.name)
             elif isinstance(col, str):
-                pass
+                col_names.append(col)
             else: 
                 raise NotImplementedError
-            col_names.append(col.name)
+            
         return df[col_names]
 
     def groupBy(self, *cols):
@@ -46,5 +47,11 @@ class DataFrameWrapper:
     def toPandas(self):
         return self._df
 
-    def __getattribute__(self, name):
-        return self._df[name]
+    def __getitem__(self, name):
+        return self.select(name)
+
+    def __repr__(self):
+        return self._df.__repr__()
+
+    def _repr_html_(self):
+        return self._df._repr_html_()

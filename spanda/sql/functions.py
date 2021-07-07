@@ -1,11 +1,32 @@
-## functions
+import math
+
+# functions
 def col(name):
     return Column(name)
+
 
 def lit(value):
     return value
 
-## classes
+
+# column functions
+def sqrt(col):
+    return col._simpleUnaryTransformColumn("SQRT ", math.sqrt)
+
+
+def cos(col):
+    return col._simpleUnaryTransformColumn("COS ", math.cos)
+
+
+def sin(col):
+    return col._simpleUnaryTransformColumn("SIN ", math.sin)
+
+
+def tan(col):
+    return col._simpleUnaryTransformColumn("TAN ", math.tan)
+
+
+# classes
 class Column:
     def __init__(self, name):
         self.name = name
@@ -32,17 +53,13 @@ class Column:
         col.op = operation
         return col
 
-    def _simpleBinaryTransformColumn(self, opname, opfunc, other):
-        return Column._transformColumn(
-            f"({Column.getName(self)} {opname} {Column.getName(other)})",
-            lambda df: opfunc(Column._apply(self, df), Column._apply(other, df))
-            )
+    def _simpleBinaryTransformColumn(self, opname, opfunc, other, is_other_col=True):
+        return Column._transformColumn(f"({Column.getName(self)} {opname} {Column.getName(other)})",
+                                       lambda df: opfunc(Column._apply(self, df),
+                                                         Column._apply(other, df) if is_other_col else other))
 
     def _simpleUnaryTransformColumn(self, opname, opfunc):
-        return Column._transformColumn(
-            f"({opname}{Column.getName(self)})",
-            lambda df: opfunc(Column.getOp(self)(df))
-            )
+        return Column._transformColumn(f"({opname}{Column.getName(self)})", lambda df: opfunc(Column.getOp(self)(df)))
 
     def __repr__(self):
         return f"<Column {self.name}>"
@@ -50,6 +67,9 @@ class Column:
     def alias(self, name):
         Column._transformColumn(name, self.op)
     
+    def isin(self, values):
+        return self._simpleBinaryTransformColumn('IN', lambda x, y: x.isin(y), values, is_other_col=False)
+
     # operators
     def __eq__(self, other):
         return self._simpleBinaryTransformColumn('==', lambda x, y: x == y, other)

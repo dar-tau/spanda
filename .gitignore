@@ -1,4 +1,5 @@
 experiments.ipynb
+.idea/*
 .ipynb_checkpoints/*
 spanda/__pycache__/*
 spanda/core/__pycache__/*
