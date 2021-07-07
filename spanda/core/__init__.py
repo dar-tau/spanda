@@ -10,11 +10,11 @@ def wrap_dataframe(func):
 
 class DataFrameWrapper:
     def __init__(self, df):
-        self.df = df
+        self._df = df
 
     @wrap_dataframe
     def filter(self, col):
-        df = self.df
+        df = self._df
         if isinstance(col, Column):
             cond = Column._apply(col, df)
             return df[cond]
@@ -25,7 +25,7 @@ class DataFrameWrapper:
 
     @wrap_dataframe
     def select(self, *cols):
-        df = self.df
+        df = self._df
         col_names = []
         for col in cols:
             if isinstance(col, Column):
@@ -40,5 +40,11 @@ class DataFrameWrapper:
     def groupBy(self, *cols):
         raise NotImplementedError
     
+    def groupby(self, *cols):
+        return self.groupBy(*cols)
+
     def toPandas(self):
-        return self.df
+        return self._df
+
+    def __getattribute__(self, name):
+        return self._df[name]

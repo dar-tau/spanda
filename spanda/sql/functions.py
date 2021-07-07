@@ -16,7 +16,7 @@ class Column:
         if isinstance(col, Column):
             return col.name
         else:
-            return str(name)
+            return str(col)
     
     @staticmethod
     def _apply(col, df):
@@ -52,34 +52,34 @@ class Column:
     
     # operators
     def __eq__(self, other):
-        return _simpleBinaryTransformColumn('==', lambda x, y: x == y)
+        return self._simpleBinaryTransformColumn('==', lambda x, y: x == y, other)
     
     def __gt__(self, other):
-        return _simpleBinaryTransformColumn('>', lambda x, y: x > y)
+        return self._simpleBinaryTransformColumn('>', lambda x, y: x > y, other)
     
     def __lt__(self, other):
-        return _simpleBinaryTransformColumn('<', lambda x, y: x < y)
+        return self._simpleBinaryTransformColumn('<', lambda x, y: x < y, other)
     
     def __ge__(self, other):
-        return _simpleBinaryTransformColumn('>=', lambda x, y: x >= y)
+        return self._simpleBinaryTransformColumn('>=', lambda x, y: x >= y, other)
     
     def __le__(self, other):
-        return _simpleBinaryTransformColumn('<=', lambda x, y: x <= y)
+        return self._simpleBinaryTransformColumn('<=', lambda x, y: x <= y, other)
     
     def __add__(self, other):
-        return _simpleBinaryTransformColumn('+', lambda x, y: x + y)
+        return self._simpleBinaryTransformColumn('+', lambda x, y: x + y, other)
     
     def __mul__(self, other): 
-        return _simpleBinaryTransformColumn('*', lambda x, y: x * y)
+        return self._simpleBinaryTransformColumn('*', lambda x, y: x * y, other)
     
     def __div__(self, other): 
-        return _simpleBinaryTransformColumn('/', lambda x, y: x / y)
+        return self._simpleBinaryTransformColumn('/', lambda x, y: x / y, other)
 
     def __sub__(self, other): 
-        return _simpleBinaryTransformColumn('-', lambda x, y: x - y)
+        return self._simpleBinaryTransformColumn('-', lambda x, y: x - y, other)
     
     def __neg__(self, other): 
-        return _simpleUnaryTransformColumn('-', lambda x: -x)
+        return self._simpleUnaryTransformColumn('-', lambda x: -x)
 
     def __invert__(self, other): 
-        return _simpleUnaryTransformColumn('NOT ', lambda x: not x)
+        return self._simpleUnaryTransformColumn('NOT ', lambda x: not x)
