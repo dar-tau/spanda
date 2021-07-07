@@ -1,12 +1,14 @@
 from ..sql.functions import Column
 import functools
 
+
 def wrap_dataframe(func):
     @functools.wraps(func)
     def f(*args, **kwargs):
         df = func(*args, **kwargs)
         return DataFrameWrapper(df)
     return f
+
 
 class DataFrameWrapper:
     def __init__(self, df):

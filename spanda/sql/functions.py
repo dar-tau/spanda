@@ -1,5 +1,13 @@
 import math
 
+
+# helper functions
+def _elementwise_apply(f):
+    def f_elementwise(x):
+        return x.apply(f)
+    return f_elementwise
+
+
 # functions
 def col(name):
     return Column(name)
@@ -11,19 +19,19 @@ def lit(value):
 
 # column functions
 def sqrt(col):
-    return col._simpleUnaryTransformColumn("SQRT ", math.sqrt)
+    return col._simpleUnaryTransformColumn("SQRT ", _elementwise_apply(math.sqrt))
 
 
 def cos(col):
-    return col._simpleUnaryTransformColumn("COS ", math.cos)
+    return col._simpleUnaryTransformColumn("COS ", _elementwise_apply(math.cos))
 
 
 def sin(col):
-    return col._simpleUnaryTransformColumn("SIN ", math.sin)
+    return col._simpleUnaryTransformColumn("SIN ", _elementwise_apply(math.sin))
 
 
 def tan(col):
-    return col._simpleUnaryTransformColumn("TAN ", math.tan)
+    return col._simpleUnaryTransformColumn("TAN ", _elementwise_apply(math.tan))
 
 
 # classes
@@ -59,13 +67,13 @@ class Column:
                                                          Column._apply(other, df) if is_other_col else other))
 
     def _simpleUnaryTransformColumn(self, opname, opfunc):
-        return Column._transformColumn(f"({opname}{Column.getName(self)})", lambda df: opfunc(Column.getOp(self)(df)))
+        return Column._transformColumn(f"({opname}{Column.getName(self)})", lambda df: opfunc(Column._apply(self, df)))
 
     def __repr__(self):
         return f"<Column {self.name}>"
 
     def alias(self, name):
-        Column._transformColumn(name, self.op)
+        return Column._transformColumn(name, self.op)
     
     def isin(self, values):
         return self._simpleBinaryTransformColumn('IN', lambda x, y: x.isin(y), values, is_other_col=False)
