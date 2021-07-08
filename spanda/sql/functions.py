@@ -49,6 +49,23 @@ def mean(col):
     return AggColumn(name="MEAN", orig_col=col, op=lambda x: x.mean())
 
 
+def first(col):
+    return AggColumn(name="FIRST", orig_col=col, op=lambda x: x.iloc[0])
+
+
+def last(col):
+    return AggColumn(name="LAST", orig_col=col, op=lambda x: x.iloc[-1])
+
+
+# window-only functions
+def lead(col, count=1):
+    raise NotImplementedError
+
+
+def lag(col, count=1):
+    raise NotImplementedError
+
+
 # classes
 class Column:
     def __init__(self, name):
@@ -123,7 +140,13 @@ class Column:
 
     def __sub__(self, other): 
         return self._simpleBinaryTransformColumn('-', lambda x, y: x - y, other)
-    
+
+    def __and__(self, other):
+        return self._simpleBinaryTransformColumn(' AND ', lambda x, y: x and y, other)
+
+    def __or__(self, other):
+        return self._simpleBinaryTransformColumn(' OR ', lambda x, y: x or y, other)
+
     def __neg__(self, other): 
         return self._simpleUnaryTransformColumn('-', lambda x: -x)
 
