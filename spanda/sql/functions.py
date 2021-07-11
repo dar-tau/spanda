@@ -1,9 +1,10 @@
 import math
+import warnings
+import pandas as pd
+
 
 # helper functions
-import warnings
-
-import pandas as pd
+sum_ = sum
 
 
 def _elementwise_apply(f):
@@ -38,6 +39,20 @@ def tan(col):
     return col._simpleUnaryTransformColumn("TAN ", _elementwise_apply(math.tan))
 
 
+def struct(*cols):
+    return Column._transformColumn(f"({', '.join([Column.getName(col) for col in cols])})",
+                                   lambda df: tuple(*[Column._apply(col, df) for col in cols])
+                                   )
+
+
+def udf(func):
+    def f(*cols):
+        return Column._transformColumn(f"UDF `{func.__name__}` ({', '.join([Column.getName(col) for col in cols])})",
+                                       lambda df: func(*[Column._apply(col, df) for col in cols])
+                                       )
+    return f
+
+
 # aggregate functions
 def _min(col):
     return AggColumn(name="MIN", orig_col=col, op=lambda x: x.min())
@@ -68,6 +83,22 @@ def count(col):
 def countDistinct(col):
     # TODO: this functions needs to be fixed
     return AggColumn(name="COUNT DISTINCT", orig_col=col, op=lambda x: len(set(x[Column.getName(col)])))
+
+
+def collect_list(col):
+    return AggColumn(name="COLLECT_LIST", orig_col=col, op=list)
+
+
+def collect_set(col):
+    return AggColumn(name="COLLECT_SET", orig_col=col, op=set)
+
+
+def _sum(col):
+    return AggColumn(name="SUM", orig_col=col, op=lambda x: x.sum())
+
+
+def sumDistinct(col):
+    return AggColumn(name="SUM DISTINCT", orig_col=col, op=lambda x: sum_(set(x)))
 
 
 # window-only functions
@@ -234,3 +265,4 @@ class WindowTransformationColumn(AggColumn):
 
 min = _min
 max = _max
+sum = _sum
