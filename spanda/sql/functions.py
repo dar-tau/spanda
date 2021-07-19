@@ -15,37 +15,61 @@ def _elementwise_apply(f):
 
 # functions
 def col(name):
+    """
+    Creates a column object with this name
+    """
     return Column(name)
 
 
 def lit(value):
+    """
+    Returns the literal value it received as value
+    """
     return value
 
 
 # column functions
 def sqrt(col):
+    """
+    Computes square root
+    """
     return col._simpleUnaryTransformColumn("SQRT ", _elementwise_apply(math.sqrt))
 
 
 def cos(col):
+    """
+    Computes cosine function
+    """
     return col._simpleUnaryTransformColumn("COS ", _elementwise_apply(math.cos))
 
 
 def sin(col):
+    """
+    Computes sine function
+    """
     return col._simpleUnaryTransformColumn("SIN ", _elementwise_apply(math.sin))
 
 
 def tan(col):
+    """
+    Computes tangent function
+    """
     return col._simpleUnaryTransformColumn("TAN ", _elementwise_apply(math.tan))
 
 
 def struct(*cols):
+    """
+    Takes in columns and returns a single struct column
+    """
     return Column._transformColumn(f"({', '.join([Column.getName(col) for col in cols])})",
                                    lambda df: tuple(*[Column._apply(col, df) for col in cols])
                                    )
 
 
 def udf(func):
+    """
+    Transforms function `func` into a function that applies `func` elementwise on a column
+    """
     def f(*cols):
         return Column._transformColumn(f"UDF `{func.__name__}` ({', '.join([Column.getName(col) for col in cols])})",
                                        lambda df: func(*[Column._apply(col, df) for col in cols])
@@ -55,66 +79,109 @@ def udf(func):
 
 # aggregate functions
 def _min(col):
+    """
+    Aggregate function: compute minimum
+    """
     return AggColumn(name="MIN", orig_col=col, op=lambda x: x.min())
 
 
 def _max(col):
+    """
+    Aggregate function: compute maximum
+    """
     return AggColumn(name="MAX", orig_col=col, op=lambda x: x.max())
 
 
 def mean(col):
+    """
+    Aggregate function: compute mean
+    """
     return AggColumn(name="MEAN", orig_col=col, op=lambda x: x.mean())
 
 
 def first(col):
+    """
+    Aggregate function: take first entry in the group
+    """
     return AggColumn(name="FIRST", orig_col=col, op=lambda x: x.iloc[0])
 
 
 def last(col):
+    """
+    Aggregate function: take last entry in the group
+    """
     return AggColumn(name="LAST", orig_col=col, op=lambda x: x.iloc[-1])
 
 
 def count(col):
+    """
+    Aggregate function: count the number of elements in the group.
+    NOTE: Not affected by the value of `col`!!
+    """
     if col != "*":
         warnings.warn("count(col) ignores the column it gets. Use count('*') instead to avoid this message")
     return AggColumn(name="COUNT", orig_col=col, op=len)
 
 
 def countDistinct(col):
+    """
+        Aggregate function: count the number of distinct elements in `col` for each group
+    """
     # TODO: this functions needs to be fixed
     return AggColumn(name="COUNT DISTINCT", orig_col=col, op=lambda x: len(set(x[Column.getName(col)])))
 
 
 def collect_list(col):
+    """
+        Aggregate function: collect all elements in group into a list
+    """
     return AggColumn(name="COLLECT_LIST", orig_col=col, op=list)
 
 
 def collect_set(col):
+    """
+            Aggregate function: collect all elements in group into a set
+    """
     return AggColumn(name="COLLECT_SET", orig_col=col, op=set)
 
 
 def _sum(col):
+    """
+            Aggregate function: compute sum
+    """
     return AggColumn(name="SUM", orig_col=col, op=lambda x: x.sum())
 
 
 def sumDistinct(col):
+    """
+            Aggregate function: sum distinct values
+    """
     return AggColumn(name="SUM DISTINCT", orig_col=col, op=lambda x: sum_(set(x)))
 
 
 # window-only functions
 def lead(col, count=1):
+    """
+            Window function: lead function
+    """
     return WindowTransformationColumn(name=f"LEAD {count}", orig_col=col,
                                       op=lambda col, grp, pos: col.loc[grp[pos+count]] if pos+count < len(grp) else None)
 
 
 def lag(col, count=1):
+    """
+                Window function: lag function
+    """
     return WindowTransformationColumn(name=f"LAG {count}", orig_col=col,
                                       op=lambda col, grp, pos: col.loc[grp[pos-count]] if pos-count >= 0 else None)
 
 
-
 # classes
 class Column:
+    """
+    A column in Spanda dataframe
+    """
+
     def __init__(self, name):
         self.name = name
         self.op = lambda df: df[name]
@@ -155,12 +222,33 @@ class Column:
         return f"<Column {self.name}>"
 
     def alias(self, name):
+        """
+        Return column with new name
+        """
+
         return Column._transformColumn(name, self.op)
 
     def between(self, start, end):
+        """
+         A boolean expression that is evaluated to true if the value of this
+         expression is between the given columns.
+
+         >>> df.select('name', F.col('age').between(2, 4))
+         +-----+---------------------------+
+         | name|((age >= 2) AND (age <= 4))|
+         +-----+---------------------------+
+         |Alice|                       true|
+         |  Bob|                      false|
+         +-----+---------------------------+
+         """
+
         return (self >= start) & (self <= end)
 
     def isin(self, values):
+        """
+        A boolean expression that is evaluated to true if the value of this
+        expression is contained by the evaluated values of the arguments.
+        """
         return self._simpleBinaryTransformColumn('IN', lambda x, y: x.isin(y), values, is_other_col=False)
 
     # operators

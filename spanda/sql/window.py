@@ -10,6 +10,13 @@ class _SpandaWindowType:
 
 
 class SpandaWindowSpec:
+    """
+    A window specification that defines the partitioning, ordering,
+    and frame boundaries.
+
+    Use the static methods in :class:`Window` to create a :class:`WindowSpec`.
+    """
+
     def __init__(self, name, op, window_type):
         self._name = name
         self._op = op
@@ -24,6 +31,10 @@ class SpandaWindowSpec:
         return row2grp, grp2rows
 
     def partitionBy(self, *cols):
+        """
+         Defines the partitioning columns in a :class:`WindowSpec`.
+         """
+
         assert len(self._window_types) == 0, ".partitionBy() must be used only after Window"
 
         def f(df):
@@ -39,6 +50,22 @@ class SpandaWindowSpec:
                                 window_types)
 
     def rowsBetween(self, start, end):
+        """
+        Defines the frame boundaries, from `start` (inclusive) to `end` (inclusive).
+
+        Both `start` and `end` are relative positions from the current row.
+        For example, "0" means "current row", while "-1" means the row before
+        the current row, and "5" means the fifth row after the current row.
+
+        We recommend users use ``Window.unboundedPreceding``, ``Window.unboundedFollowing``,
+        and ``Window.currentRow`` to specify special boundary values, rather than using integral
+        values directly.
+
+        :param start: boundary start, inclusive.
+                      The frame is unbounded if this is ``Window.unboundedPreceding``.
+        :param end: boundary end, inclusive.
+                    The frame is unbounded if this is ``Window.unboundedFollowing``.
+        """
         assert len(self._window_types) == 0, ".rowsBetween() must be used only after Window"
 
         def f(df):
@@ -57,6 +84,10 @@ class SpandaWindowSpec:
                                 window_types)
 
     def orderBy(self, *cols, ascending=True):
+        """
+        Defines the ordering columns in a :class:`WindowSpec`.
+        """
+
         assert set(self._window_types).issubset({_SpandaWindowType.PARTITION_BY,
                                                  _SpandaWindowType.ROWS_BETWEEN}), \
             ".orderBy() can be used only after .partitionBy() or .rowsBetween()"
@@ -78,6 +109,22 @@ class SpandaWindowSpec:
             raise NotImplementedError
 
     def rangeBetween(self, start, end):
+        """
+        Defines the frame boundaries, from `start` (inclusive) to `end` (inclusive).
+
+        Both `start` and `end` are relative from the current row. For example,
+        "0" means "current row", while "-1" means one off before the current row,
+        and "5" means the five off after the current row.
+
+        We recommend users use ``Window.unboundedPreceding``, ``Window.unboundedFollowing``,
+        and ``Window.currentRow`` to specify special boundary values, rather than using integral
+        values directly.
+
+        :param start: boundary start, inclusive.
+                      The frame is unbounded if this is ``Window.unboundedPreceding``.
+        :param end: boundary end, inclusive.
+                    The frame is unbounded if this is ``Window.unboundedFollowing``.
+        """
         raise NotImplementedError
 
 
@@ -92,16 +139,56 @@ class Window:
 
     @staticmethod
     def partitionBy(*cols):
+        """
+        Creates a `WindowSpec` with the partitioning defined.
+        """
         return Window._init().partitionBy(*cols)
 
     @staticmethod
     def orderBy(*cols):
+        """
+        Creates a `WindowSpec` with the ordering defined.
+        """
         return Window._init().orderBy(*cols)
 
     @staticmethod
     def rangeBetween(start, end):
+        """
+        Creates a `WindowSpec` with the frame boundaries defined,
+        from `start` (inclusive) to `end` (inclusive).
+
+        Both `start` and `end` are relative from the current row. For example,
+        "0" means "current row", while "-1" means one off before the current row,
+        and "5" means the five off after the current row.
+
+        We recommend users use ``Window.unboundedPreceding``, ``Window.unboundedFollowing``,
+        and ``Window.currentRow`` to specify special boundary values, rather than using integral
+        values directly.
+
+        :param start: boundary start, inclusive.
+                      The frame is unbounded if this is ``Window.unboundedPreceding``.
+        :param end: boundary end, inclusive.
+                    The frame is unbounded if this is ``Window.unboundedFollowing``.
+        """
         return Window._init().rangeBetween(start, end)
 
     @staticmethod
     def rowsBetween(start, end):
+        """
+        Creates a `WindowSpec` with the frame boundaries defined,
+        from `start` (inclusive) to `end` (inclusive).
+
+        Both `start` and `end` are relative positions from the current row.
+        For example, "0" means "current row", while "-1" means the row before
+        the current row, and "5" means the fifth row after the current row.
+
+        We recommend users use ``Window.unboundedPreceding``, ``Window.unboundedFollowing``,
+        and ``Window.currentRow`` to specify special boundary values, rather than using integral
+        values directly.
+
+        :param start: boundary start, inclusive.
+                      The frame is unbounded if this is ``Window.unboundedPreceding``
+        :param end: boundary end, inclusive.
+                    The frame is unbounded if this is ``Window.unboundedFollowing``
+        """
         return Window._init().rowsBetween(start, end)
