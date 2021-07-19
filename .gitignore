@@ -1,3 +1,4 @@
+dist/*
 experiments.ipynb
 .idea/*
 .ipynb_checkpoints/*
