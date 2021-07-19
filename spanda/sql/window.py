@@ -59,7 +59,7 @@ class SpandaWindowSpec:
     def orderBy(self, *cols, ascending=True):
         assert set(self._window_types).issubset({_SpandaWindowType.PARTITION_BY,
                                                  _SpandaWindowType.ROWS_BETWEEN}), \
-            ".orderBy() must be used only after .partitionBy() or .rowsBetween()"
+            ".orderBy() can be used only after .partitionBy() or .rowsBetween()"
         if len(self._window_types) > 0:
             def f(group_data, df):
                 row2grp, grp2rows = group_data
@@ -76,6 +76,9 @@ class SpandaWindowSpec:
                                     window_types)
         else:
             raise NotImplementedError
+
+    def rangeBetween(self, start, end):
+        raise NotImplementedError
 
 
 class Window:
