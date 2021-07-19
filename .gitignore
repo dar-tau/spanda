@@ -1,4 +1,5 @@
 dist/*
+spanda/spanda.egg-info/*
 experiments.ipynb
 .idea/*
 .ipynb_checkpoints/*
