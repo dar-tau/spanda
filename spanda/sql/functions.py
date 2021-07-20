@@ -125,7 +125,7 @@ def count(col):
 
 def countDistinct(col):
     """
-        Aggregate function: count the number of distinct elements in `col` for each group
+    Aggregate function: count the number of distinct elements in `col` for each group
     """
     # TODO: this functions needs to be fixed
     return AggColumn(name="COUNT DISTINCT", orig_col=col, op=lambda x: len(set(x[Column.getName(col)])))
@@ -133,28 +133,28 @@ def countDistinct(col):
 
 def collect_list(col):
     """
-        Aggregate function: collect all elements in group into a list
+    Aggregate function: collect all elements in group into a list
     """
     return AggColumn(name="COLLECT_LIST", orig_col=col, op=list)
 
 
 def collect_set(col):
     """
-            Aggregate function: collect all elements in group into a set
+    Aggregate function: collect all elements in group into a set
     """
     return AggColumn(name="COLLECT_SET", orig_col=col, op=set)
 
 
 def _sum(col):
     """
-            Aggregate function: compute sum
+    Aggregate function: compute sum
     """
     return AggColumn(name="SUM", orig_col=col, op=lambda x: x.sum())
 
 
 def sumDistinct(col):
     """
-            Aggregate function: sum distinct values
+    Aggregate function: sum distinct values
     """
     return AggColumn(name="SUM DISTINCT", orig_col=col, op=lambda x: sum_(set(x)))
 
@@ -162,7 +162,7 @@ def sumDistinct(col):
 # window-only functions
 def lead(col, count=1):
     """
-            Window function: lead function
+    Window function: lead function
     """
     return WindowTransformationColumn(name=f"LEAD {count}", orig_col=col,
                                       op=lambda col, grp, pos: col.loc[grp[pos+count]] if pos+count < len(grp) else None)
@@ -170,10 +170,27 @@ def lead(col, count=1):
 
 def lag(col, count=1):
     """
-                Window function: lag function
+    Window function: lag function
     """
     return WindowTransformationColumn(name=f"LAG {count}", orig_col=col,
                                       op=lambda col, grp, pos: col.loc[grp[pos-count]] if pos-count >= 0 else None)
+
+
+def dense_rank():
+    """
+    Window function: dense rank function
+    """
+    return WindowTransformationColumn(name=f"DENSE RANK", orig_col=None,
+                                      op=lambda col, grp, pos: pos)
+
+
+def rank():
+    """
+    Window function: rank function
+    """
+    # TODO: check
+    return WindowTransformationColumn(name=f"RANK", orig_col=None,
+                                      op=lambda col, grp, pos: list(col.loc[grp]).index(col[grp[pos]]))
 
 
 # classes
@@ -341,7 +358,10 @@ class WindowTransformationColumn(AggColumn):
 
     def over(self, window_spec):
         def f(df):
-            inputs = Column._apply(self._orig_col, df)
+            orig_col = self._orig_col
+            if orig_col is None:
+                orig_col = window_spec._get_orderby_col()
+            inputs = Column._apply(orig_col, df)
             row2grp, grp2rows = window_spec._get_group_data(df)
             data = {row_idx: self._op(inputs, grp2rows[grp_name], grp2rows[grp_name].index(row_idx))
                     for row_idx, grp_name in row2grp.items()}

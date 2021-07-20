@@ -1,4 +1,5 @@
 import numpy as np
+import functions as F
 
 
 class _SpandaWindowType:
@@ -20,6 +21,7 @@ class SpandaWindowSpec:
     def __init__(self, name, op, window_type):
         self._name = name
         self._op = op
+        self._orderby_col = None
         if isinstance(window_type, tuple):
             self._window_types = window_type
         else:
@@ -29,6 +31,10 @@ class SpandaWindowSpec:
         assert len(self._window_types) != 0, "cannot apply window function over empty Window"
         row2grp, grp2rows = self._op(df)
         return row2grp, grp2rows
+
+    def _get_orderby_col(self):
+        assert self._orderby_col is not None, "this window operation requires to use .orderBy()"
+        return self._orderby_col
 
     def partitionBy(self, *cols):
         """
@@ -103,6 +109,7 @@ class SpandaWindowSpec:
                 return row2grp, grp2rows
 
             window_types = self._window_types + (_SpandaWindowType.ORDER_BY,)
+            self._orderby_col = F.struct(cols)
             return SpandaWindowSpec(self._name + f" ORDER BY ({', '.join(cols)})", lambda df: f(self._op(df), df),
                                     window_types)
         else:
