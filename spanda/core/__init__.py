@@ -2,9 +2,10 @@ import pandas as pd
 
 from ..sql.functions import Column, AggColumn
 import functools
+from spanda.core.typing import *
 
 
-def wrap_dataframe(func):
+def wrap_dataframe(func: Callable) -> Callable:
     @functools.wraps(func)
     def f(*args, **kwargs):
         df = func(*args, **kwargs)
@@ -22,11 +23,11 @@ class DataFrameWrapper:
             employee_ids = sdf.filter("is_employee").select("id")
     """
 
-    def __init__(self, df):
+    def __init__(self, df: pd.DataFrame):
         self._df = df
 
     @wrap_dataframe
-    def filter(self, col):
+    def filter(self, col: Column) -> 'DataFrameWrapper':
         """
         Returns a Spanda dataframe with only the records for which `col` equals True.
         """
@@ -41,7 +42,7 @@ class DataFrameWrapper:
             raise NotImplementedError
 
     @wrap_dataframe
-    def select(self, *cols):
+    def select(self, *cols: Column) -> 'DataFrameWrapper':
         """
         Returns a Spanda dataframe with only the selected columns.
         """
@@ -60,7 +61,7 @@ class DataFrameWrapper:
         return df[col_names]
 
     @wrap_dataframe
-    def join(self, other, on, how='inner'):
+    def join(self, other: 'DataFrameWrapper', on: Union[str, List[str]], how: Optional[str] = 'inner'):
         """
         Joins with another Spanda dataframe.
         `on` is a column name or a list of column names we join by.
@@ -73,7 +74,7 @@ class DataFrameWrapper:
 
         return pd.merge(self._df, other._df, on=on, how=how)
 
-    def groupBy(self, *cols):
+    def groupBy(self, *cols: str) -> 'GroupedDataFrameWrapper':
         """
         Groups by the column names `cols`
         """
@@ -82,19 +83,19 @@ class DataFrameWrapper:
         groups = group_by.groups
         return GroupedDataFrameWrapper(df=self._df, key=cols, groups=groups)
     
-    def groupby(self, *cols):
+    def groupby(self, *cols: str) -> 'GroupedDataFrameWrapper':
         """
         Groups by the column names `cols`
         """
         return self.groupBy(*cols)
 
-    def toPandas(self):
+    def toPandas(self) -> pd.DataFrame:
         """
         Returns the Pandas dataframe corresponding to this Spanda dataframe
         """
         return self._df
 
-    def __getitem__(self, name):
+    def __getitem__(self, name: str) -> 'DataFrameWrapper':
         return self.select(name)
 
     def __repr__(self):
@@ -105,12 +106,13 @@ class DataFrameWrapper:
 
 
 class GroupedDataFrameWrapper:
-    def __init__(self, df, key, groups):
+    def __init__(self, df: pd.DataFrame, key: Tuple[str], groups: Dict[Hashable, pd.Index]):
         self._df = df
         self._keys = key
         self._groups = groups
 
-    def agg(self, *cols):
+    @wrap_dataframe
+    def agg(self, *cols: AggColumn) -> DataFrameWrapper:
         """
                 Aggregate grouped data by aggregation column specified in `cols`
         """

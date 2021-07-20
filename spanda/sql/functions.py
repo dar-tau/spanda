@@ -1,7 +1,7 @@
 import math
 import warnings
 import pandas as pd
-from spanda.core._typing import *
+from spanda.core.typing import *
 
 # helper functions
 sum_ = sum
@@ -19,40 +19,41 @@ class Column:
     A column in Spanda dataframe
     """
 
-    def __init__(self, name):
+    def __init__(self, name: Optional[str]):
         self.name = name
         self.op = lambda df: df[name]
 
-    def setOp(self, op):
+    def setOp(self, op: Callable):
         self.op = op
 
     @staticmethod
-    def getName(col):
+    def getName(col: Union['Column', str]) -> str:
         if isinstance(col, Column):
             return col.name
         else:
             return str(col)
 
     @staticmethod
-    def _apply(col, df):
+    def _apply(col: 'Column', df: pd.DataFrame) -> Union[pd.Series, Any]:
         if isinstance(col, Column):
             return col.op(df)
         else:
             return col
 
     @staticmethod
-    def _transformColumn(name, operation):
+    def _transformColumn(name: str, operation: Callable) -> 'Column':
         col = Column(None)
         col.name = name
         col.op = operation
         return col
 
-    def _simpleBinaryTransformColumn(self, opname, opfunc, other, is_other_col=True):
+    def _simpleBinaryTransformColumn(self, opname: str, opfunc: Callable, other: Union['Column', Any],
+                                     is_other_col: bool = True) -> 'Column':
         return Column._transformColumn(f"({Column.getName(self)} {opname} {Column.getName(other)})",
                                        lambda df: opfunc(Column._apply(self, df),
                                                          Column._apply(other, df) if is_other_col else other))
 
-    def _simpleUnaryTransformColumn(self, opname, opfunc):
+    def _simpleUnaryTransformColumn(self, opname: str, opfunc: Callable) -> 'Column':
         return Column._transformColumn(f"({opname}{Column.getName(self)})", lambda df: opfunc(Column._apply(self, df)))
 
     def __repr__(self):
@@ -147,10 +148,10 @@ class AggColumn:
         return f"{agg_col._name} ({Column.getName(agg_col._orig_col)})"
 
     @staticmethod
-    def _apply(agg_col, df):
+    def _apply(agg_col: 'AggColumn', df: pd.DataFrame) -> pd.Series:
         return agg_col._op(Column._apply(agg_col._orig_col, df))
 
-    def over(self, window_spec):
+    def over(self, window_spec) -> Column:
         def f(df):
             inputs = Column._apply(self._orig_col, df)
             # in the following, row2grp represents the representative group of each row, while grp2rows is a dictionary
@@ -168,16 +169,16 @@ class AggColumn:
 
 
 class WindowTransformationColumn(AggColumn):
-    def __init(self, name, orig_col, op):
+    def __init(self, name: str, orig_col: Column, op: Callable):
         self._name = name
         self._orig_col = orig_col
         self._op = op
 
     @staticmethod
-    def _apply(agg_col, df):
+    def _apply(agg_col, df: pd.DataFrame):
         assert False, f"cannot aggregate grouped data using `{agg_col._name}`. can be used only over windows."
 
-    def over(self, window_spec):
+    def over(self, window_spec) -> Column:
         def f(df):
             orig_col = self._orig_col
             if orig_col is None:
@@ -340,7 +341,7 @@ def sumDistinct(col: Column) -> AggColumn:
 
 
 # window-only functions
-def lead(col: Column, count: Optional[int] = 1) -> WindowTransformationColumn:
+def lead(col: Column, count: int = 1) -> WindowTransformationColumn:
     """
     Window function: lead function
     """
@@ -348,7 +349,7 @@ def lead(col: Column, count: Optional[int] = 1) -> WindowTransformationColumn:
                                       op=lambda col, grp, pos: col.loc[grp[pos+count]] if pos+count < len(grp) else None)
 
 
-def lag(col: Column, count: Optional[int] = 1) -> WindowTransformationColumn:
+def lag(col: Column, count: int = 1) -> WindowTransformationColumn:
     """
     Window function: lag function
     """

@@ -1,6 +1,8 @@
 import numpy as np
-import spanda.sql.functions as F
+import pandas as pd
 
+import spanda.sql.functions as F
+from spanda.core.typing import *
 
 class _SpandaWindowType:
     NONE            = 0
@@ -19,7 +21,7 @@ class SpandaWindowSpec:
     """
 
     def __init__(self, name: str, op: Callable, window_type: Union[Tuple[_SpandaWindowType], _SpandaWindowType],
-                 _orderby_col: Optional[Nullable[F.Column]]=None):
+                 _orderby_col: Optional[F.Column] = None):
         self._name = name
         self._op = op
         self._orderby_col = _orderby_col
@@ -28,7 +30,7 @@ class SpandaWindowSpec:
         else:
             self._window_types = (window_type,) if window_type != _SpandaWindowType.NONE else tuple()
 
-    def _get_group_data(self, df):
+    def _get_group_data(self, df: pd.DataFrame) -> Tuple[dict]:
         assert len(self._window_types) != 0, "cannot apply window function over empty Window"
         row2grp, grp2rows = self._op(df)
         return row2grp, grp2rows
@@ -37,7 +39,7 @@ class SpandaWindowSpec:
         assert self._orderby_col is not None, "this window operation requires to use .orderBy()"
         return self._orderby_col
 
-    def partitionBy(self, *cols):
+    def partitionBy(self, *cols: str) -> 'SpandaWindowSpec':
         """
          Defines the partitioning columns in a :class:`WindowSpec`.
          """
@@ -56,7 +58,7 @@ class SpandaWindowSpec:
         return SpandaWindowSpec(self._name + f" PARTITION BY {', '.join([F.Column.getName(col) for col in cols])}",
                                 lambda df: f(self._op(df)), window_types)
 
-    def rowsBetween(self, start, end):
+    def rowsBetween(self, start: int, end: int) -> 'SpandaWindowSpec':
         """
         Defines the frame boundaries, from `start` (inclusive) to `end` (inclusive).
 
@@ -90,7 +92,7 @@ class SpandaWindowSpec:
         return SpandaWindowSpec(self._name + f" ROWS BETWEEN ({start}, {end})", lambda df: f(self._op(df)),
                                 window_types)
 
-    def orderBy(self, *cols, ascending=True):
+    def orderBy(self, *cols: str, ascending: bool = True) -> 'SpandaWindowSpec':
         """
         Defines the ordering columns in a :class:`WindowSpec`.
         """
@@ -116,7 +118,7 @@ class SpandaWindowSpec:
         else:
             raise NotImplementedError
 
-    def rangeBetween(self, start, end):
+    def rangeBetween(self, start: int, end: int) -> 'SpandaWindowSpec':
         """
         Defines the frame boundaries, from `start` (inclusive) to `end` (inclusive).
 
@@ -146,21 +148,21 @@ class Window:
         return SpandaWindowSpec(name="", op=lambda df: df, window_type=_SpandaWindowType.NONE)
 
     @staticmethod
-    def partitionBy(*cols):
+    def partitionBy(*cols: str) -> SpandaWindowSpec:
         """
         Creates a `WindowSpec` with the partitioning defined.
         """
         return Window._init().partitionBy(*cols)
 
     @staticmethod
-    def orderBy(*cols):
+    def orderBy(*cols: str) -> SpandaWindowSpec:
         """
         Creates a `WindowSpec` with the ordering defined.
         """
         return Window._init().orderBy(*cols)
 
     @staticmethod
-    def rangeBetween(start, end):
+    def rangeBetween(start: int, end: int) -> SpandaWindowSpec:
         """
         Creates a `WindowSpec` with the frame boundaries defined,
         from `start` (inclusive) to `end` (inclusive).
@@ -181,7 +183,7 @@ class Window:
         return Window._init().rangeBetween(start, end)
 
     @staticmethod
-    def rowsBetween(start, end):
+    def rowsBetween(start: int, end: int) -> SpandaWindowSpec:
         """
         Creates a `WindowSpec` with the frame boundaries defined,
         from `start` (inclusive) to `end` (inclusive).
