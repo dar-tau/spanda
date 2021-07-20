@@ -1,5 +1,5 @@
 import numpy as np
-import functions as F
+import spanda.sql.functions as F
 
 
 class _SpandaWindowType:
@@ -18,10 +18,10 @@ class SpandaWindowSpec:
     Use the static methods in :class:`Window` to create a :class:`WindowSpec`.
     """
 
-    def __init__(self, name, op, window_type):
+    def __init__(self, name, op, window_type, _orderby_col=None):
         self._name = name
         self._op = op
-        self._orderby_col = None
+        self._orderby_col = _orderby_col
         if isinstance(window_type, tuple):
             self._window_types = window_type
         else:
@@ -52,8 +52,8 @@ class SpandaWindowSpec:
             return row2grp, grp2rows
 
         window_types = self._window_types + (_SpandaWindowType.PARTITION_BY,)
-        return SpandaWindowSpec(self._name + f" PARTITION BY {', '.join(cols)}", lambda df: f(self._op(df)),
-                                window_types)
+        return SpandaWindowSpec(self._name + f" PARTITION BY {', '.join([F.Column.getName(col) for col in cols])}",
+                                lambda df: f(self._op(df)), window_types)
 
     def rowsBetween(self, start, end):
         """
@@ -109,9 +109,9 @@ class SpandaWindowSpec:
                 return row2grp, grp2rows
 
             window_types = self._window_types + (_SpandaWindowType.ORDER_BY,)
-            self._orderby_col = F.struct(cols)
-            return SpandaWindowSpec(self._name + f" ORDER BY ({', '.join(cols)})", lambda df: f(self._op(df), df),
-                                    window_types)
+            return SpandaWindowSpec(self._name + f" ORDER BY ({', '.join([F.Column.getName(col) for col in cols])})",
+                                    lambda df: f(self._op(df), df),
+                                    window_types, _orderby_col=F.struct(*map(F.col, cols)))
         else:
             raise NotImplementedError
 

@@ -62,8 +62,8 @@ def struct(*cols):
     Takes in columns and returns a single struct column
     """
     return Column._transformColumn(f"({', '.join([Column.getName(col) for col in cols])})",
-                                   lambda df: tuple(*[Column._apply(col, df) for col in cols])
-                                   )
+                                   lambda df: pd.concat([Column._apply(col, df) for col in cols],
+                                                        axis='columns').apply(lambda x: tuple(x), axis='columns'))
 
 
 def udf(func):
