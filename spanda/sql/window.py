@@ -18,7 +18,8 @@ class SpandaWindowSpec:
     Use the static methods in :class:`Window` to create a :class:`WindowSpec`.
     """
 
-    def __init__(self, name, op, window_type, _orderby_col=None):
+    def __init__(self, name: str, op: Callable, window_type: Union[Tuple[_SpandaWindowType], _SpandaWindowType],
+                 _orderby_col: Optional[Nullable[F.Column]]=None):
         self._name = name
         self._op = op
         self._orderby_col = _orderby_col
