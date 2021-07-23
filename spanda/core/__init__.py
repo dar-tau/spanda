@@ -1,8 +1,8 @@
 import pandas as pd
-
 from ..sql.functions import Column, AggColumn
-import functools
 from spanda.core.typing import *
+from .utils import wrap_col_args
+import functools
 
 
 def wrap_dataframe(func: Callable) -> Callable:
@@ -27,7 +27,8 @@ class DataFrameWrapper:
         self._df = df
 
     @wrap_dataframe
-    def filter(self, col: Column) -> 'DataFrameWrapper':
+    @wrap_col_args
+    def filter(self, col: Column) -> pd.DataFrame:
         """
         Returns a Spanda dataframe with only the records for which `col` equals True.
         """
@@ -42,7 +43,8 @@ class DataFrameWrapper:
             raise NotImplementedError
 
     @wrap_dataframe
-    def select(self, *cols: Column) -> 'DataFrameWrapper':
+    @wrap_col_args
+    def select(self, *cols: Column) -> pd.DataFrame:
         """
         Returns a Spanda dataframe with only the selected columns.
         """
@@ -61,7 +63,7 @@ class DataFrameWrapper:
         return df[col_names]
 
     @wrap_dataframe
-    def join(self, other: 'DataFrameWrapper', on: Union[str, List[str]], how: Optional[str] = 'inner'):
+    def join(self, other: 'DataFrameWrapper', on: Union[str, List[str]], how: str = 'inner') -> pd.DataFrame:
         """
         Joins with another Spanda dataframe.
         `on` is a column name or a list of column names we join by.
@@ -95,14 +97,24 @@ class DataFrameWrapper:
         """
         return self._df
 
-    def __getitem__(self, name: str) -> 'DataFrameWrapper':
-        return self.select(name)
+    def __getitem__(self, name: str) -> Column:
+        df = self._df
+        return Column._transformColumn(name, lambda _: df[name])
 
     def __repr__(self):
         return self._df.__repr__()
 
     def _repr_html_(self):
         return self._df._repr_html_()
+
+    def __getattr__(self, name: str):
+        """
+        After regular attribute access, try looking up the name
+        This allows simpler access to columns for interactive use.
+        """
+        if not name.startswith('_'):
+            return self[name]
+        return object.__getattribute__(self, name)
 
 
 class GroupedDataFrameWrapper:
@@ -112,7 +124,7 @@ class GroupedDataFrameWrapper:
         self._groups = groups
 
     @wrap_dataframe
-    def agg(self, *cols: AggColumn) -> DataFrameWrapper:
+    def agg(self, *cols: AggColumn) -> pd.DataFrame:
         """
                 Aggregate grouped data by aggregation column specified in `cols`
         """

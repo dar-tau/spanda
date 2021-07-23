@@ -199,6 +199,8 @@ def col(name: str) -> Column:
     """
     Creates a column object with this name
     """
+    if name == "*":
+        return Column._transformColumn("*", lambda df: df.apply(lambda x: tuple(x), axis='columns'))
     return Column(name)
 
 
