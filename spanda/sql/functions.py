@@ -273,14 +273,6 @@ def array_distinct(col: Column) -> Column:
     return col._simpleUnaryTransformColumn(f"ARRAY_DISTINCT ", _elementwise_apply(lambda x: list(set(x))))
 
 
-@wrap_col_args
-def corr(col1: Column, col2: Column) -> Column:
-    """
-    Compute the Pearson correlation between col1 and col2
-    """
-    return col1._simpleBinaryTransformColumn("CORR WITH", lambda x, y: x.corr(y, method='pearson'), col2)
-
-
 def concat_ws(sep: str, *cols: Column) -> Column:
     """
     Concatenate string cols with sep as the separator
@@ -335,6 +327,19 @@ def udf(func: Callable) -> Callable:
 
 
 # aggregate functions
+
+def corr(col1: Union[str, Column], col2: Union[str, Column], method='pearson') -> AggColumn:
+    """
+    Compute the correlation between col1 and col2
+    """
+
+    def _corr_func(xy: pd.Series):
+        x, y = xy.apply(lambda x: x[0]), xy.apply(lambda x: x[1])
+        return x.corr(y)
+
+    return AggColumn(name="CORR ", orig_col=struct(col1, col2), op=_corr_func)
+
+
 @wrap_col_args
 def _min(col: Column) -> AggColumn:
     """

@@ -17,6 +17,36 @@ class DataFrameWrapper:
     def __init__(self, df: pd.DataFrame):
         self._df = df
 
+    @property
+    def columns(self):
+        return list(self._df.columns)
+
+    @wrap_dataframe
+    def withColumn(self, name: str, col: Column) -> pd.DataFrame:
+        """
+        Returns a new Spanda dataframe with a new column
+        """
+        return self._df.assign(**{name: Column._apply(col, self._df)})
+
+    @wrap_dataframe
+    def distinct(self):
+        """
+        Return new Spanda dataframe with no duplicate rows
+        """
+        return self._df.drop_duplicates()
+
+    def drop(self, *cols: str):
+        """
+        Returns Spanda dataframe without the mentioned columns
+        """
+        return self.select(*filter(lambda c: c not in cols, self.columns))
+
+    def count(self) -> int:
+        """
+        Returns the number of rows in dataframe
+        """
+        return len(self._df)
+
     @wrap_dataframe
     @wrap_col_args
     def filter(self, col: Column) -> pd.DataFrame:
