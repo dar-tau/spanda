@@ -1,16 +1,7 @@
 import pandas as pd
 from ..sql.functions import Column, AggColumn
 from spanda.core.typing import *
-from .utils import wrap_col_args
-import functools
-
-
-def wrap_dataframe(func: Callable) -> Callable:
-    @functools.wraps(func)
-    def f(*args, **kwargs):
-        df = func(*args, **kwargs)
-        return DataFrameWrapper(df)
-    return f
+from .utils import wrap_col_args, wrap_dataframe
 
 
 class DataFrameWrapper:

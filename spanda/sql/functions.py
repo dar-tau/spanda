@@ -2,6 +2,7 @@ import math
 import warnings
 import pandas as pd
 from spanda.core.typing import *
+from spanda.core.utils import wrap_col_args
 
 # helper functions
 sum_ = sum
@@ -212,6 +213,7 @@ def lit(value: Any):
 
 
 # column functions
+@wrap_col_args
 def sqrt(col: Column) -> Column:
     """
     Computes square root
@@ -219,6 +221,7 @@ def sqrt(col: Column) -> Column:
     return col._simpleUnaryTransformColumn("SQRT ", _elementwise_apply(math.sqrt))
 
 
+@wrap_col_args
 def cos(col: Column) -> Column:
     """
     Computes cosine function
@@ -226,6 +229,7 @@ def cos(col: Column) -> Column:
     return col._simpleUnaryTransformColumn("COS ", _elementwise_apply(math.cos))
 
 
+@wrap_col_args
 def sin(col: Column) -> Column:
     """
     Computes sine function
@@ -233,6 +237,7 @@ def sin(col: Column) -> Column:
     return col._simpleUnaryTransformColumn("SIN ", _elementwise_apply(math.sin))
 
 
+@wrap_col_args
 def tan(col: Column) -> Column:
     """
     Computes tangent function
@@ -240,6 +245,7 @@ def tan(col: Column) -> Column:
     return col._simpleUnaryTransformColumn("TAN ", _elementwise_apply(math.tan))
 
 
+@wrap_col_args
 def struct(*cols: Column) -> Column:
     """
     Takes in columns and returns a single struct column
@@ -253,6 +259,8 @@ def udf(func: Callable) -> Callable:
     """
     Transforms function `func` into a function that applies `func` elementwise on a column
     """
+
+    @wrap_col_args
     def f(*cols):
         return Column._transformColumn(f"UDF `{func.__name__}` ({', '.join([Column.getName(col) for col in cols])})",
                                        lambda df: func(*[Column._apply(col, df) for col in cols])
@@ -261,6 +269,7 @@ def udf(func: Callable) -> Callable:
 
 
 # aggregate functions
+@wrap_col_args
 def _min(col: Column) -> AggColumn:
     """
     Aggregate function: compute minimum
@@ -268,6 +277,7 @@ def _min(col: Column) -> AggColumn:
     return AggColumn(name="MIN", orig_col=col, op=lambda x: x.min())
 
 
+@wrap_col_args
 def _max(col: Column) -> AggColumn:
     """
     Aggregate function: compute maximum
@@ -275,6 +285,7 @@ def _max(col: Column) -> AggColumn:
     return AggColumn(name="MAX", orig_col=col, op=lambda x: x.max())
 
 
+@wrap_col_args
 def mean(col: Column) -> AggColumn:
     """
     Aggregate function: compute mean
@@ -282,6 +293,7 @@ def mean(col: Column) -> AggColumn:
     return AggColumn(name="MEAN", orig_col=col, op=lambda x: x.mean())
 
 
+@wrap_col_args
 def first(col: Column) -> AggColumn:
     """
     Aggregate function: take first entry in the group
@@ -289,6 +301,7 @@ def first(col: Column) -> AggColumn:
     return AggColumn(name="FIRST", orig_col=col, op=lambda x: x.iloc[0])
 
 
+@wrap_col_args
 def last(col: Column) -> AggColumn:
     """
     Aggregate function: take last entry in the group
@@ -306,6 +319,7 @@ def count(col: Column) -> AggColumn:
     return AggColumn(name="COUNT", orig_col=col, op=len)
 
 
+@wrap_col_args
 def countDistinct(col: Column) -> AggColumn:
     """
     Aggregate function: count the number of distinct elements in `col` for each group
@@ -314,6 +328,7 @@ def countDistinct(col: Column) -> AggColumn:
     return AggColumn(name="COUNT DISTINCT", orig_col=col, op=lambda x: len(set(x[Column.getName(col)])))
 
 
+@wrap_col_args
 def collect_list(col: Column) -> AggColumn:
     """
     Aggregate function: collect all elements in group into a list
@@ -321,6 +336,7 @@ def collect_list(col: Column) -> AggColumn:
     return AggColumn(name="COLLECT_LIST", orig_col=col, op=list)
 
 
+@wrap_col_args
 def collect_set(col: Column) -> AggColumn:
     """
     Aggregate function: collect all elements in group into a set
@@ -328,6 +344,7 @@ def collect_set(col: Column) -> AggColumn:
     return AggColumn(name="COLLECT_SET", orig_col=col, op=set)
 
 
+@wrap_col_args
 def _sum(col: Column) -> AggColumn:
     """
     Aggregate function: compute sum
@@ -335,6 +352,7 @@ def _sum(col: Column) -> AggColumn:
     return AggColumn(name="SUM", orig_col=col, op=lambda x: x.sum())
 
 
+@wrap_col_args
 def sumDistinct(col: Column) -> AggColumn:
     """
     Aggregate function: sum distinct values
@@ -343,6 +361,7 @@ def sumDistinct(col: Column) -> AggColumn:
 
 
 # window-only functions
+@wrap_col_args
 def lead(col: Column, count: int = 1) -> WindowTransformationColumn:
     """
     Window function: lead function
@@ -351,6 +370,7 @@ def lead(col: Column, count: int = 1) -> WindowTransformationColumn:
                                       op=lambda col, grp, pos: col.loc[grp[pos+count]] if pos+count < len(grp) else None)
 
 
+@wrap_col_args
 def lag(col: Column, count: int = 1) -> WindowTransformationColumn:
     """
     Window function: lag function
