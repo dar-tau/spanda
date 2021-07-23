@@ -6,6 +6,7 @@ from spanda.core.utils import wrap_col_args
 
 # helper functions
 sum_ = sum
+abs_ = abs
 
 
 def _elementwise_apply(f: Callable):
@@ -82,6 +83,9 @@ class Column:
          """
 
         return (self >= start) & (self <= end)
+
+    def apply(self, func: Callable) -> 'Column':
+        return udf(func)(self)
 
     def isin(self, values):
         """
@@ -207,9 +211,9 @@ def col(name: str) -> Column:
 
 def lit(value: Any):
     """
-    Returns the literal value it received as value
+    Returns a column representing the literal value it received as value
     """
-    return value
+    return Column._transformColumn(f"LIT( {str(value)} )", lambda df: value)
 
 
 # column functions
@@ -219,6 +223,70 @@ def sqrt(col: Column) -> Column:
     Computes square root
     """
     return col._simpleUnaryTransformColumn("SQRT ", _elementwise_apply(math.sqrt))
+
+
+@wrap_col_args
+def exp(col: Column) -> Column:
+    """
+    Computes exp function
+    """
+    return col._simpleUnaryTransformColumn("EXP ", _elementwise_apply(math.exp))
+
+
+@wrap_col_args
+def log(col: Column) -> Column:
+    """
+    Computes logarithm function
+    """
+    return col._simpleUnaryTransformColumn("LOG ", _elementwise_apply(math.log))
+
+
+@wrap_col_args
+def _abs(col: Column) -> Column:
+    """
+    Computes absolute value
+    """
+    return col._simpleUnaryTransformColumn("ABS ", _elementwise_apply(abs_))
+
+
+@wrap_col_args
+def array(*cols: Column) -> Column:
+    """
+    Return column of arrays
+    """
+    return (struct(*cols).apply(list)).alias(f"[{', '.join([Column.getName(c) for c in cols])}]")
+
+
+def array_contains(col: Column, value: Any) -> Column:
+    """
+    Return whether value is contained in the array
+    """
+    return col._simpleUnaryTransformColumn(f"{Column.getName(lit(value))} CONTAINED IN ",
+                                           _elementwise_apply(lambda x: value in x))
+
+
+@wrap_col_args
+def array_distinct(col: Column) -> Column:
+    """
+    Return for every entry in the column (of arrays), remove duplicates
+    """
+    return col._simpleUnaryTransformColumn(f"ARRAY_DISTINCT ", _elementwise_apply(lambda x: list(set(x))))
+
+
+@wrap_col_args
+def corr(col1: Column, col2: Column) -> Column:
+    """
+    Compute the Pearson correlation between col1 and col2
+    """
+    return col1._simpleBinaryTransformColumn("CORR WITH", lambda x, y: x.corr(y, method='pearson'), col2)
+
+
+def concat_ws(sep: str, *cols: Column) -> Column:
+    """
+    Concatenate string cols with sep as the separator
+    """
+    return (struct(*cols).apply(sep.join)
+            .alias(f'CONCAT_WS("{str(sep)}", {", ".join([Column.getName(c) for c in cols])})'))
 
 
 @wrap_col_args
@@ -250,9 +318,7 @@ def struct(*cols: Column) -> Column:
     """
     Takes in columns and returns a single struct column
     """
-    return Column._transformColumn(f"({', '.join([Column.getName(col) for col in cols])})",
-                                   lambda df: pd.concat([Column._apply(col, df) for col in cols],
-                                                        axis='columns').apply(lambda x: tuple(x), axis='columns'))
+    return udf(lambda *x: tuple(x))(*cols).alias(f"({', '.join([Column.getName(col) for col in cols])})")
 
 
 def udf(func: Callable) -> Callable:
@@ -261,10 +327,10 @@ def udf(func: Callable) -> Callable:
     """
 
     @wrap_col_args
-    def f(*cols):
+    def f(*cols: Column) -> Column:
         return Column._transformColumn(f"UDF `{func.__name__}` ({', '.join([Column.getName(col) for col in cols])})",
-                                       lambda df: func(*[Column._apply(col, df) for col in cols])
-                                       )
+                                       lambda df: pd.concat([Column._apply(col, df) for col in cols],
+                                                            axis='columns').apply(lambda c: func(*c), axis='columns'))
     return f
 
 
@@ -399,3 +465,4 @@ def rank() -> WindowTransformationColumn:
 min = _min
 max = _max
 sum = _sum
+abs = _abs
