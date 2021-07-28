@@ -1,5 +1,5 @@
 import pandas as pd
-from ..sql.functions import Column, AggColumn
+from ..sql.functions import Column, AggColumn, min as F_min, max as F_max, col
 from spanda.core.typing import *
 from .utils import wrap_col_args, wrap_dataframe
 
@@ -110,6 +110,42 @@ class DataFrameWrapper:
         """
         grp_data = GroupedDataFrameWrapper(self._df, tuple(), {0: self._df.index})
         return grp_data.agg(*agg_cols)
+
+    def min(self):
+        """
+        Compute minimum for each column in the dataframe
+        """
+        return self.agg(*[F_min(c) for c in self.columns])
+
+    def max(self):
+        """
+        Compute maximum for each column in the dataframe
+        """
+        return self.agg(*[F_max(c) for c in self.columns])
+
+    @wrap_dataframe
+    def sort(self, *cols: str, ascending: bool = True):
+        """
+        order the rows by the columns named in cols.
+        if ascending is True, it will be ordered in ascending order; otherwise - in descending order
+        """
+        return self._df.sort_values(list(cols), ascending=ascending)
+
+    def where(self, col: Column):
+        """
+        Alias for `.filter()`
+        """
+        return self.filter(col)
+
+    def withColumnRenamed(self, old_name: str, new_name: str):
+        return self.withColumn(new_name, col(old_name)).drop(old_name)
+
+    @wrap_dataframe
+    def head(self, n :int = 5):
+        """
+        Return first n rows of dataframe
+        """
+        return self._df.head(n)
 
     @wrap_dataframe
     @wrap_col_args
