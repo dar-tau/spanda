@@ -21,8 +21,49 @@ class DataFrameWrapper:
     def columns(self):
         return list(self._df.columns)
 
+    @staticmethod
+    def _tmp_col_name(cols):
+        i = 0
+        col_name = '__tmp'
+        while col_name in cols:
+            col_name = f'__tmp_{i}'
+            i += 1
+        return col_name
+
     @wrap_dataframe
-    def withColumn(self, name: str, col: Column) -> pd.DataFrame:
+    def intersect(self, other: 'DataFrameWrapper'):
+        """
+        Return intersection of dataframes
+        """
+        assert set(self.columns) == set(other.columns), "columns must be the same when intersecting dataframes"
+
+        # TODO: CHECK
+        return pd.merge(self._df, other._df, on=self.columns, how='inner').drop_duplicates()
+
+    @wrap_dataframe
+    def union(self, other: 'DataFrameWrapper'):
+        """
+        Returns union of dataframes
+        """
+        assert set(self.columns) == set(other.columns), "columns must be the same when unioning dataframes"
+        return pd.concat([self._df, other._df], axis='index').drop_duplicates()
+
+    @wrap_dataframe
+    def subtract(self, other: 'DataFrameWrapper'):
+        """
+        Subtraction of dataframes (as sets of rows)
+        """
+        assert set(self.columns) == set(other.columns), "columns must be the same when subtracting dataframes"
+        tmp_col = DataFrameWrapper._tmp_col_name(set(self.columns).union(other.columns))
+        tmp_df = pd.concat([self.withColumn(tmp_col, 'A')._df.drop_duplicates(),
+                   other.withColumn(tmp_col, 'B')._df.drop_duplicates()], axis='index')\
+
+        tmp_df = tmp_df.groupby(self.columns).agg({tmp_col: tuple})
+        tmp_df = tmp_df[tmp_df[tmp_col] == ('A',)]
+        return pd.merge(self._df, tmp_df, on=self.columns, how='inner').drop(tmp_col, axis='columns')
+
+    @wrap_dataframe
+    def withColumn(self, name: str, col: Column):
         """
         Returns a new Spanda dataframe with a new column
         """
@@ -49,7 +90,7 @@ class DataFrameWrapper:
 
     @wrap_dataframe
     @wrap_col_args
-    def filter(self, col: Column) -> pd.DataFrame:
+    def filter(self, col: Column):
         """
         Returns a Spanda dataframe with only the records for which `col` equals True.
         """
@@ -65,7 +106,7 @@ class DataFrameWrapper:
 
     @wrap_dataframe
     @wrap_col_args
-    def select(self, *cols: Column) -> pd.DataFrame:
+    def select(self, *cols: Column):
         """
         Returns a Spanda dataframe with only the selected columns.
         """
@@ -78,13 +119,13 @@ class DataFrameWrapper:
                 col_names.append(col.name)
             elif isinstance(col, str):
                 col_names.append(col)
-            else: 
+            else:
                 raise NotImplementedError
-            
+
         return df[col_names]
 
     @wrap_dataframe
-    def join(self, other: 'DataFrameWrapper', on: Union[str, List[str]], how: str = 'inner') -> pd.DataFrame:
+    def join(self, other: 'DataFrameWrapper', on: Union[str, List[str]], how: str = 'inner'):
         """
         Joins with another Spanda dataframe.
         `on` is a column name or a list of column names we join by.
@@ -105,7 +146,7 @@ class DataFrameWrapper:
         group_by = self._df.groupby(*cols)
         groups = group_by.groups
         return GroupedDataFrameWrapper(df=self._df, key=cols, groups=groups)
-    
+
     def groupby(self, *cols: str) -> 'GroupedDataFrameWrapper':
         """
         Groups by the column names `cols`
