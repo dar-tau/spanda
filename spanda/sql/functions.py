@@ -273,12 +273,132 @@ def array_distinct(col: Column) -> Column:
     return col._simpleUnaryTransformColumn(f"ARRAY_DISTINCT ", _elementwise_apply(lambda x: list(set(x))))
 
 
+@wrap_col_args
+def concat(*cols: Column) -> Column:
+    """
+    Concatenate strings or arrays
+    """
+    def _concat_with_assert(xs):
+        # TODO: actually need to assert they are the same type
+        assert all([isinstance(x, (str, list)) for x in xs]), "concat() can take in either string or list."
+        return sum(xs)
+
+    return (struct(*cols).apply(_concat_with_assert)
+            .alias(f'CONCAT("{str(sep)}", {", ".join([Column.getName(c) for c in cols])})'))
+
+
 def concat_ws(sep: str, *cols: Column) -> Column:
     """
     Concatenate string cols with sep as the separator
     """
     return (struct(*cols).apply(sep.join)
             .alias(f'CONCAT_WS("{str(sep)}", {", ".join([Column.getName(c) for c in cols])})'))
+
+
+@wrap_col_args
+def size(col: Column) -> Column:
+    """
+    Computes length of array or dict
+    """
+    def _len_with_assert(x):
+        assert isinstance(x, (list, tuple, dict)), "cannot apply size() to elements of type other than array, tuple"\
+                                                   " or dictionary."
+        return len(x)
+
+    return col._simpleUnaryTransformColumn("SIZE ", _elementwise_apply(_len_with_assert))
+
+
+@wrap_col_args
+def signum(col: Column) -> Column:
+    """
+    Computes the signum of a value
+    """
+    def _signum(x):
+        if x == 0:
+            return 0
+        return 1 if x > 0 else -1
+
+    return col._simpleUnaryTransformColumn("SIGNUM ", _elementwise_apply(_signum))
+
+
+@wrap_col_args
+def acos(col: Column) -> Column:
+    """
+    Computes inverse cosine function
+    """
+    return col._simpleUnaryTransformColumn("ACOS ", _elementwise_apply(math.acos))
+
+
+@wrap_col_args
+def asin(col: Column) -> Column:
+    """
+    Computes inverse sine function
+    """
+    return col._simpleUnaryTransformColumn("ASIN ", _elementwise_apply(math.asin))
+
+
+@wrap_col_args
+def atan(col: Column) -> Column:
+    """
+    Computes inverse tangent function
+    """
+    return col._simpleUnaryTransformColumn("ATAN ", _elementwise_apply(math.atan))
+
+
+@wrap_col_args
+def atan2(col: Column) -> Column:
+    """
+    Computes atan2 function
+    """
+    return col._simpleUnaryTransformColumn("ATAN2 ", _elementwise_apply(math.atan2))
+
+
+@wrap_col_args
+def cosh(col: Column) -> Column:
+    """
+    Computes hyperbolic cosine function
+    """
+    return col._simpleUnaryTransformColumn("COSH ", _elementwise_apply(math.cosh))
+
+
+@wrap_col_args
+def acosh(col: Column) -> Column:
+    """
+    Computes inverse hyperbolic cosine function
+    """
+    return col._simpleUnaryTransformColumn("ACOSH ", _elementwise_apply(math.acosh))
+
+
+@wrap_col_args
+def sinh(col: Column) -> Column:
+    """
+    Computes hyperbolic sine function
+    """
+    return col._simpleUnaryTransformColumn("SINH ", _elementwise_apply(math.sinh))
+
+
+@wrap_col_args
+def asinh(col: Column) -> Column:
+    """
+    Computes inverse hyperbolic sine function
+    """
+    return col._simpleUnaryTransformColumn("ASINH ", _elementwise_apply(math.asinh))
+
+
+@wrap_col_args
+def tanh(col: Column) -> Column:
+    """
+    Computes hyperbolic tangent function
+    """
+    return col._simpleUnaryTransformColumn("TANH ", _elementwise_apply(math.tanh))
+
+
+@wrap_col_args
+def atanh(col: Column) -> Column:
+    """
+    Computes inverse hyperbolic tangent function
+    """
+    return col._simpleUnaryTransformColumn("ATANH ", _elementwise_apply(math.atanh))
 
 
 @wrap_col_args
