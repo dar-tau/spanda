@@ -48,19 +48,12 @@ class DataFrameWrapper:
         assert set(self.columns) == set(other.columns), "columns must be the same when unioning dataframes"
         return pd.concat([self._df, other._df], axis='index').drop_duplicates()
 
-    @wrap_dataframe
     def subtract(self, other: 'DataFrameWrapper'):
         """
         Subtraction of dataframes (as sets of rows)
         """
         assert set(self.columns) == set(other.columns), "columns must be the same when subtracting dataframes"
-        tmp_col = DataFrameWrapper._tmp_col_name(set(self.columns).union(other.columns))
-        tmp_df = pd.concat([self.withColumn(tmp_col, 'A')._df.drop_duplicates(),
-                   other.withColumn(tmp_col, 'B')._df.drop_duplicates()], axis='index')\
-
-        tmp_df = tmp_df.groupby(self.columns).agg({tmp_col: tuple})
-        tmp_df = tmp_df[tmp_df[tmp_col] == ('A',)]
-        return pd.merge(self._df, tmp_df, on=self.columns, how='inner').drop(tmp_col, axis='columns')
+        return self.join(other, on=self.columns, how='left_anti')
 
     @wrap_dataframe
     def withColumn(self, name: str, col: Column):
@@ -172,14 +165,35 @@ class DataFrameWrapper:
         """
         Joins with another Spanda dataframe.
         `on` is a column name or a list of column names we join by.
-        `how` decides which type of join will be used ('inner', 'outer', 'left', 'right', 'cross')
+        `how` decides which type of join will be used ('inner', 'outer', 'left', 'right', 'cross', 'left_anti')
         """
 
         assert isinstance(other, DataFrameWrapper), "can join only with spanda dataframes"
-        assert how in ['inner', 'outer', 'left', 'right', 'cross'], \
+        assert how in ['inner', 'outer', 'left', 'right', 'cross', 'leftanti', 'left_anti',
+                       'right_anti', 'rightanti', 'left_semi', 'leftsemi'], \
             "this join method ('how' parameter) is not supported"
 
-        return pd.merge(self._df, other._df, on=on, how=how)
+        if isinstance(on, str):
+            on = [on]
+
+        if how in ['left_semi', 'leftsemi']:
+            # TODO: be aware some duplicate columns not in 'on' may exist
+            return self.join(other, on=on, how='left').select(*self.columns).distinct()._df
+
+        elif how in ['rightanti', 'right_anti']:
+            return other.join(self, on=on, how='left_anti')._df
+
+        elif how in ['leftanti', 'left_anti']:
+            tmp_col = DataFrameWrapper._tmp_col_name(set(self.columns).union(other.columns))
+            tmp_df = pd.concat([self.select(*on).withColumn(tmp_col, 'A')._df.drop_duplicates(),
+                                other.select(*on).withColumn(tmp_col, 'B')._df.drop_duplicates()], axis='index')
+
+            tmp_df = tmp_df.groupby(list(on)).agg({tmp_col: tuple})
+            tmp_df = tmp_df[tmp_df[tmp_col] == ('A',)]
+            return pd.merge(self._df, tmp_df, on=on, how='inner').drop(tmp_col, axis='columns')
+
+        else:
+            return pd.merge(self._df, other._df, on=on, how=how)
 
     def groupBy(self, *cols: str) -> 'GroupedDataFrameWrapper':
         """
