@@ -274,6 +274,70 @@ def array_distinct(col: Column) -> Column:
 
 
 @wrap_col_args
+def array_min(col: Column) -> Column:
+    """
+    Return for every entry in the column (of arrays), its minimum
+    """
+    return col._simpleUnaryTransformColumn(f"ARRAY_MIN ", _elementwise_apply(min_))
+
+
+@wrap_col_args
+def array_max(col: Column) -> Column:
+    """
+    Return for every entry in the column (of arrays), its maximum
+    """
+    return col._simpleUnaryTransformColumn(f"ARRAY_MAX ", _elementwise_apply(max_))
+
+
+@wrap_col_args
+def array_sort(col: Column) -> Column:
+    """
+    Return for every entry in the column (of arrays), the sorted array
+    """
+    return col._simpleUnaryTransformColumn(f"ARRAY_SORT ", _elementwise_apply(sorted))
+
+
+def _concat_pd_cols(*pd_cols: pd.Series):
+    return pd.concat(pd_cols, axis='column')
+
+
+@wrap_col_args
+def array_union(col1: Column, col2: Column) -> Column:
+    """
+    Return for corresponding entries in the columns (of arrays), the union of the arrays without duplicates
+    """
+    def _union_cols(pd_df: pd.DataFrame):
+        # TODO: assert lists
+        return pd_df.apply(lambda row: set(row[0]).union(row[1]), axis='columns')
+    return col1._simpleBinaryTransformColumn(f"ARRAY_UNION ", lambda x, y: _union_cols(_concat_pd_cols(x, y)), col2)
+
+
+@wrap_col_args
+def arrays_overlap(col1: Column, col2: Column) -> Column:
+    """
+    returns true if the arrays contain any common non-null element;
+    if not, returns null if both the arrays are non-empty and any of them contains a null element;
+    returns false otherwise.
+    """
+    def _overlap_cols(pd_df: pd.DataFrame):
+        def _overlap_cols_inner(row: pd.Series):
+            x, y = row[0], row[1]
+            res = set(x).intersection(y)
+            if len(res) == 0:
+                return False
+            if len(res) >= 2:
+                return True
+            if None in res:
+                return None
+            return True
+
+        # TODO: assert lists
+        return pd_df.apply(_overlap_cols_inner, axis='columns')
+    return col1._simpleBinaryTransformColumn(f"ARRAYS_OVERLAP ",
+                                             lambda x, y: _overlap_cols(_concat_pd_cols(x, y)), col2)
+
+
+@wrap_col_args
 def concat(*cols: Column) -> Column:
     """
     Concatenate strings or arrays
