@@ -313,6 +313,101 @@ def array_union(col1: Column, col2: Column) -> Column:
 
 
 @wrap_col_args
+def array_intersect(col1: Column, col2: Column) -> Column:
+    """
+    Return for corresponding entries in the columns (of arrays), the intersection of the arrays without duplicates
+    """
+    def _intersect_cols(pd_df: pd.DataFrame):
+        # TODO: assert lists
+        return pd_df.apply(lambda row: set(row[0]).intersection(row[1]), axis='columns')
+    return col1._simpleBinaryTransformColumn(f"ARRAY_INTERSECT ", lambda x, y: _intersect_cols(_concat_pd_cols(x, y)), col2)
+
+
+@wrap_col_args
+def array_except(col1: Column, col2: Column) -> Column:
+    """
+    Return for corresponding entries in the columns (of arrays), an array of elements contained in the first
+     array (col1) and not in the second array (col2). The output is without duplicates.
+    """
+    def _except_cols(pd_df: pd.DataFrame):
+        # TODO: assert lists
+        return pd_df.apply(lambda row: set(row[0]).difference(row[1]), axis='columns')
+    return col1._simpleBinaryTransformColumn(f"ARRAY_EXCEPT ", lambda x, y: _except_cols(_concat_pd_cols(x, y)), col2)
+
+
+def array_position(col: Column, value: Any) -> Column:
+    """
+    First argument is a column of arrays. Return 1-based position of value in the array.
+    If not in the array return 0. If either of the arguments is None return None.
+    """
+
+    def _find_index(arr, value):
+        if (arr is None) or (value is None):
+            return None
+        pos = arr.index(value) if value in arr else -1
+        return pos + 1
+
+    return col._simpleBinaryTransformColumn(f"ARRAY_POSITION ", _find_index,
+                                            value, is_other_col=False)
+
+
+def array_remove(col: Column, value: Any) -> Column:
+    """
+    First argument is a column of arrays. For every array in column, return array without value.
+    """
+
+    def _remove_value(arr, value):
+        return list(filter(lambda x: x != value, arr))
+
+    return col._simpleBinaryTransformColumn(f"ARRAY_REMOVE ", _remove_value,
+                                            value, is_other_col=False)
+
+
+def array_join(col: Column, delimiter: str, null_replacement=None) -> Column:
+    """
+    First argument is a column of arrays. Concatenates the elements of col using the delimiter.
+    None values are replaced with null_replacement if set, otherwise they are ignored.
+    """
+
+    def _join_arr(arr, delimiter):
+        if null_replacement is None:
+            new_arr = filter(lambda x: x is not None, arr)
+        else:
+            new_arr = [null_replacement if x is None else x for x in arr]
+        return delimiter.join(new_arr)
+
+    return col._simpleBinaryTransformColumn(f"ARRAY_JOIN ", _join_arr, delimiter, is_other_col=False)
+
+
+def array_repeat(col: Column, count: int) -> Column:
+    """
+    creates an array containing a column repeated count times
+    """
+
+    def _repeat_arr(val, cnt):
+        return [val for _ in range(cnt)]
+
+    return col._simpleBinaryTransformColumn(f"ARRAY_REPEAT ", _repeat_arr, count, is_other_col=False)
+
+
+def element_at(col: Column, extraction: Hashable) -> Column:
+    """
+    col is an array column.
+    Returns element of array at given index in extraction if col is array.
+    Returns value for the given key in extraction if col is a dictionary.
+    NOTE: Index in array in 1-based!!
+    """
+
+    def _element_at(arr, ext):
+        if isinstance(arr, list):
+            ext -= 1
+            assert ext >= 0, "make sure you use 1-based indexing. only positive values are allowed."
+        return arr[ext] if ext in arr else None
+
+    return col._simpleBinaryTransformColumn(f"ELEMENT_AT ", _element_at, extraction, is_other_col=False)
+
+
+@wrap_col_args
 def arrays_overlap(col1: Column, col2: Column) -> Column:
     """
     returns true if the arrays contain any common non-null element;
@@ -335,6 +430,17 @@ def arrays_overlap(col1: Column, col2: Column) -> Column:
         return pd_df.apply(_overlap_cols_inner, axis='columns')
     return col1._simpleBinaryTransformColumn(f"ARRAYS_OVERLAP ",
                                              lambda x, y: _overlap_cols(_concat_pd_cols(x, y)), col2)
+
+
+@wrap_col_args
+def arrays_zip(*cols: Column) -> Column:
+    """
+    Zip array columns
+    """
+    def _zip_cols(combined_col: tuple):
+        return list(zip(*combined_col))
+    return (struct(*cols).apply(_zip_cols)
+            .alias(f'ARRAYS_ZIP({", ".join([Column.getName(c) for c in cols])})'))
 
 
 @wrap_col_args
