@@ -250,6 +250,62 @@ def _abs(col: Column) -> Column:
 
 
 @wrap_col_args
+def trim(col: Column) -> Column:
+    """
+    Trim whitespaces from both sides of a string
+    """
+    return col._simpleUnaryTransformColumn("TRIM ", _elementwise_apply(str.strip))
+
+
+@wrap_col_args
+def ltrim(col: Column) -> Column:
+    """
+    Trim whitespaces from the left side of a string
+    """
+    return col._simpleUnaryTransformColumn("LTRIM ", _elementwise_apply(str.lstrip))
+
+
+@wrap_col_args
+def ltrim(col: Column) -> Column:
+    """
+    Trim whitespaces from the right side of a string
+    """
+    return col._simpleUnaryTransformColumn("RTRIM ", _elementwise_apply(str.rstrip))
+
+
+def lpad(col: Column, len: int, pad: str) -> Column:
+    """
+    Pad string to width `len` with character `pad` on the left.
+    """
+
+    return col._simpleUnaryTransformColumn(f"LPAD [{len}, `{pad}`] ", _elementwise_apply(partial(str.ljust, __width=len, __fillchar=pad)))
+
+
+def rpad(col: Column, len: int, pad: str) -> Column:
+    """
+    Pad string to width `len` with character `pad` on the right.
+    """
+
+    return col._simpleUnaryTransformColumn(f"RPAD [{len}, `{pad}`] ", _elementwise_apply(partial(str.rjust, __width=len, __fillchar=pad)))
+
+
+@wrap_col_args
+def upper(col: Column) -> Column:
+    """
+    Uppercase string column
+    """
+    return col._simpleUnaryTransformColumn("UPPER ", _elementwise_apply(str.upper))
+
+
+@wrap_col_args
+def lower(col: Column) -> Column:
+    """
+    Lowercase string column
+    """
+    return col._simpleUnaryTransformColumn("LOWER ", _elementwise_apply(str.lower))
+
+
+@wrap_col_args
 def array(*cols: Column) -> Column:
     """
     Return column of arrays
