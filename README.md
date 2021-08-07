@@ -2,7 +2,7 @@
 Spanda, is a Sanskrit word meaning “divine vibration”, or pulse. This term is used to describe how consciousness, at the subtlest level, moves in waves of contraction and expansion. Or at least that's what Wikipedia has to say about it. 
 
 For our purpose, spanda means **Sp**ark-inspired syntax for **Panda**s.
-<img style="float: right" src="spanda_logo.png"/>
+<img style="float: right; width:200px;" src="spanda_logo.png"/>
 
 ## Quickstart
 * We aim to bring the intuitive syntax of PySpark to Pandas
