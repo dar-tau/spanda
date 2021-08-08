@@ -11,8 +11,14 @@ For our purpose, spanda means **Sp**ark-inspired syntax for **Panda**s.
 ```python
 df.filter("x & y") # rather than Spark's: df.filter("x AND y")
 ```
-* We chose `toPandas` to return the internally maintained Pandas dataframe. The reason we keep `toPandas` is to letting the user apply Pandas methods after using the Spark-like methods. It also allows smoother migration for existing code written in PySpark.
+* We chose `toPandas` to return the internally maintained Pandas dataframe. The reason we keep `toPandas` is letting the user apply Pandas methods after using the Spark-like methods. It also allows smoother migration for existing code written in PySpark.
 
-## Why Is It Good?
-* **Syntax is more succinct**: in PySpark we can _decouple columns from dataframes_. It is very powerful, leading to much cleaner code.
-* **Window Columns**: at the time of writing these lines, Pandas does not support SQL windows (only a very specific use case is implemented). We provide a windowing mechanism akin to that of PySpark thus extending your toolbox.
+## Why Do I Need It?
+* **Syntax is more succinct**: in PySpark we can _decouple columns from dataframes_. It is very powerful, Making your code much cleaner.
+* **Advanced functionalities**: many advanced functionalities are currently unavailable in Pandas. These include sophisticated joins (anti-left, semi-left, ..),
+SQL window and group-by with rollup and cube
+* **Easy to set up**: you don't need to set up a cluster or Java environment. While PySpark is written in Java and Scala and bound to Python, 
+Spanda is entirely written in Python.
+* **Source code readability**: since Spanda is written in Python, and we tried to keep the code clean, it is supposed to be extremely easy to follow the source code.
+It can also serve as a reference for data science learners for the innards of specific functions by skimming the code.
+* **Additional features**: while our main goal is simulating PySpark code, we do not exclude the possibility of adding significant features that are not readily available in PySpark.
