@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import pandas as pd
 from ..sql.functions import Column, AggColumn, min as F_min, max as F_max, col
 from spanda.core.typing import *
@@ -209,6 +211,36 @@ class DataFrameWrapper:
         Groups by the column names `cols`
         """
         return self.groupBy(*cols)
+
+    def rollup(self, *cols: str):
+        """
+        Performs rollup group by `cols`
+        """
+        group_by = self._df.groupby(list(cols))
+        orig_groups = group_by.groups
+        new_groups = defaultdict(list)
+        for level in range(len(cols)+1):
+            for name in orig_groups.keys():
+                if level > 0:
+                    level_name = name[:-level] + (None,) * level
+                else:
+                    level_name = name
+                new_groups[level_name] += list(orig_groups[name])
+        return GroupedDataFrameWrapper(df=self._df, key=cols, groups=new_groups)
+
+    def cube(self, *cols: str):
+        """
+        Performs cube group-by on `cols`
+        """
+        group_by = self._df.groupby(list(cols))
+        orig_groups = group_by.groups
+        new_groups = defaultdict(list)
+        for comb in range(2**len(cols)):
+            for name in orig_groups.keys():
+                assert isinstance(name, tuple)
+                cube_name = tuple([name[i] if (comb >> i) % 2 == 0 else None for i in range(len(cols))])
+                new_groups[cube_name] += list(orig_groups[name])
+        return GroupedDataFrameWrapper(df=self._df, key=cols, groups=new_groups)
 
     def toPandas(self) -> pd.DataFrame:
         """
