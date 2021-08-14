@@ -203,7 +203,7 @@ class DataFrameWrapper:
         """
         assert all(map(lambda x: isinstance(x, str), cols)), "only column names are allowed for now"
         group_by = self._df.groupby(list(cols))
-        groups = group_by.groups
+        groups = group_by.indices
         return GroupedDataFrameWrapper(df=self._df, key=cols, groups=groups)
 
     def groupby(self, *cols: str) -> 'GroupedDataFrameWrapper':
@@ -269,7 +269,7 @@ class DataFrameWrapper:
 
 
 class GroupedDataFrameWrapper:
-    def __init__(self, df: pd.DataFrame, key: Tuple[str], groups: Dict[Hashable, pd.Index]):
+    def __init__(self, df: pd.DataFrame, key: Tuple[str], groups: Dict[Hashable, int]):
         self._df = df
         self._keys = key
         self._groups = groups
@@ -291,6 +291,6 @@ class GroupedDataFrameWrapper:
             assert col_name not in df_dict, "cannot have duplicate names in aggregate dataframe"
             df_dict[col_name] = []
             for grp_idxs in self._groups.values():
-                grp = self._df.loc[grp_idxs]
+                grp = self._df.iloc[grp_idxs]
                 df_dict[col_name].append(AggColumn._apply(col, grp))
         return pd.DataFrame(df_dict)
