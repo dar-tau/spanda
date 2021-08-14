@@ -217,7 +217,7 @@ class DataFrameWrapper:
         Performs rollup group by `cols`
         """
         group_by = self._df.groupby(list(cols))
-        orig_groups = group_by.groups
+        orig_groups = group_by.indices
         new_groups = defaultdict(list)
         for level in range(len(cols)+1):
             for name in orig_groups.keys():
@@ -233,7 +233,7 @@ class DataFrameWrapper:
         Performs cube group-by on `cols`
         """
         group_by = self._df.groupby(list(cols))
-        orig_groups = group_by.groups
+        orig_groups = group_by.indices
         new_groups = defaultdict(list)
         for comb in range(2**len(cols)):
             for name in orig_groups.keys():
