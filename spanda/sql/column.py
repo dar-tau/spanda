@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 from spanda.core.typing import *
 from spanda.core.utils import wrap_col_args
@@ -84,6 +86,50 @@ class Column:
 
         return (self >= start) & (self <= end)
 
+    def getItem(self, key: Union[int, Hashable]):
+        """
+        An expression that gets an item at position ordinal out of a list, or gets an item by key out of a dict
+        """
+        return self._simpleUnaryTransformColumn(f'GET_ITEM [{str(key)}]', lambda x: x[key])
+
+    def isNotNull(self):
+        """
+        True if the current expression is NOT null.
+        """
+        return self._simpleUnaryTransformColumn('IS NOT NULL ', lambda x: x is not None)
+
+    def isNull(self):
+        """
+        True if the current expression is null.
+        """
+        return self._simpleUnaryTransformColumn('IS NULL ', lambda x: x is None)
+
+    def rlike(self, other: str):
+        """
+        SQL RLIKE expression (LIKE with Regex). Returns a boolean Column based on a regex match.
+        """
+        pattern = re.compile(other)
+        return self._simpleUnaryTransformColumn(f'RLIKE ({str(pattern)}) ', lambda x: pattern.search(x) is not None)
+
+    def like(self, other: str):
+        """
+        SQL like expression. Returns a boolean Column based on a SQL LIKE match.
+        """
+        _special_regex_chars = {
+            ch: '\\' + ch
+            for ch in '.^$*+?{}[]|()\\'
+        }
+
+        def _sql_like_fragment_to_regex_string(fragment):
+            # https://codereview.stackexchange.com/a/36864/229677
+            safe_fragment = ''.join([
+                _special_regex_chars.get(ch, ch)
+                for ch in fragment
+            ])
+            return '^' + safe_fragment.replace('%', '.*?').replace('_', '.') + '$'
+
+        return self.rlike(_sql_like_fragment_to_regex_string(other))
+
     def apply(self, func: Callable) -> 'Column':
         return udf(func)(self)
 
@@ -93,6 +139,36 @@ class Column:
         expression is contained by the evaluated values of the arguments.
         """
         return self._simpleBinaryTransformColumn('IN', lambda x, y: x.isin(y), values, is_other_col=False)
+
+    def substr(self, startPos: int, length: int):
+        """
+        Return a Column which is a substring of the column
+        """
+        # TODO: assert is string
+        return self._simpleUnaryTransformColumn(f'SUBSTR ({startPos}, {length}) ',
+                                                lambda x: x[startPos: startPos + length])
+
+    def startswith(self, other: str):
+        """
+        True if string begins with `other`
+        """
+        return self._simpleUnaryTransformColumn(f'STARTSWITH ("{other}") ',
+                                                lambda x: x.startswith(other))
+
+    def endswith(self, other: str):
+        """
+        True if string ends with `other`
+        """
+        return self._simpleUnaryTransformColumn(f'ENDSWITH ("{other}") ',
+                                                lambda x: x.endswith(other))
+
+    def contains(self, other: str):
+        """
+        True if string contains string `other`
+        """
+        # TODO: assert string
+        return self._simpleUnaryTransformColumn(f'CONTAINS ("{other}") ',
+                                                lambda x: other in x)
 
     # operators
     def __eq__(self, other):
