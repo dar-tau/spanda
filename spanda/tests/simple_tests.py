@@ -86,3 +86,7 @@ def test_explode(sdf3):
     inputs = sdf3.select(F.array('a','b').alias('tmp')).select(F.explode('tmp').alias('x')).toPandas().reset_index()
     output = '{"index":{"0":"A","1":"A","2":"D","3":"D","4":"B","5":"B"},"x":{"0":1,"1":0,"2":2,"3":0,"4":3,"5":-1}}'
     assert _compare_to_json(inputs, output, to_pandas = False)
+    
+def test_select_star(sdf4):
+    inputs = sdf4.select(F.col('*'), F.col('a').alias('A'), F.col('a') * 3)
+    output = '{"b":{"A":0,"D":1,"B":-1},"a":{"A":1,"D":2,"B":3},"A":{"A":1,"D":2,"B":3},"(a * 3)":{"A":3,"D":6,"B":9}}'

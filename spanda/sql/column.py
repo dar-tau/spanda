@@ -12,15 +12,16 @@ class _SpecialSpandaColumn:
     because the flexibility allowed by usual columns do not apply to them. Such columns include exploded rows which can
     only come inside a select operation (at least in Spanda). These columns do not allow any further transformation
     other than simple ones such as name aliases. They are "leaf-transformations" that can only appear in a select(...)
-    clause or its derivatives (such as withColumn(...)).
+    clause.
     """
 
     EXPLODE_ROWS_TYPE = 1
+    EXPLODE_COLS_TYPE = 2
 
-    def __init__(self, transformation_type, transformed_col, name):
+    def __init__(self, transformation_type, extra_data, name):
         self._name = name
         self._transformation_type = transformation_type
-        self._transformed_col = transformed_col
+        self._extra_data = extra_data
 
     def alias(self, name):
         new_copy = deepcopy(self)
@@ -28,16 +29,41 @@ class _SpecialSpandaColumn:
         return new_copy
 
     @staticmethod
-    def _apply_special(col, df):
+    def _apply_special_preprocess(col, df):
         if col._transformation_type == _SpecialSpandaColumn.EXPLODE_ROWS_TYPE:
-            return df[col._transformed_col]
+            return
+        elif col._transformation_type == _SpecialSpandaColumn.EXPLODE_COLS_TYPE:
+            if col._extra_data == '*':
+                return {'add_columns': list(df.columns), 'actual_columns': []}
         else:
             raise NotImplementedError
 
     @staticmethod
-    def _apply_special_postprocess(df, col_name, trans_type):
+    def _apply_special(col, df, metadata):
+        if col._transformation_type == _SpecialSpandaColumn.EXPLODE_ROWS_TYPE:
+            orig_col_name = col._extra_data
+            return df[orig_col_name]
+        elif col._transformation_type == _SpecialSpandaColumn.EXPLODE_COLS_TYPE:
+            col_names = []
+            if col._extra_data == '*':
+                col_names = metadata['actual_columns']
+            return df.apply(lambda row: {name: row[name] for name in col_names}, axis=1)
+        else:
+            raise NotImplementedError
+
+    @staticmethod
+    def _apply_special_postprocess(df: pd.DataFrame, col_name: str, trans_type: int,
+                                   metadata: dict,
+                                   all_col_names: list) -> pd.DataFrame:
+
             if trans_type == _SpecialSpandaColumn.EXPLODE_ROWS_TYPE:
                 return df.explode([col_name])
+            elif trans_type == _SpecialSpandaColumn.EXPLODE_COLS_TYPE:
+                col_dicts = df[col_name].tolist()
+                new_df = pd.DataFrame.from_records(col_dicts, index=df.index)
+                pos = all_col_names.index(col_name)
+                all_col_names[:] = all_col_names[:pos] + metadata['add_columns'] + all_col_names[pos+1:]
+                return pd.concat([df, new_df], axis=1)
             else:
                 raise NotImplementedError
 

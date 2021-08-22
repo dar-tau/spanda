@@ -150,22 +150,32 @@ class DataFrameWrapper:
         Returns a Spanda dataframe with only the selected columns.
         """
 
+        metadata = {}
         df = self._df
         col_names = []
         special_cols = []
         for col in cols:
+            if isinstance(col, _SpecialSpandaColumn):
+                metadata.update({col._name: _SpecialSpandaColumn._apply_special_preprocess(col, df)})
+        for col in cols:
             if isinstance(col, Column):
                 df = df.assign(**{col._name: Column._apply(col, df)})
                 col_names.append(col._name)
+
             elif isinstance(col, _SpecialSpandaColumn):
-                df = df.assign(**{col._name: _SpecialSpandaColumn._apply_special(col, df)})
+                df = df.assign(**{col._name: _SpecialSpandaColumn._apply_special(col, df,
+                                                                                 metadata=metadata[col._name])})
                 col_names.append(col._name)
                 special_cols.append((col._name, col._transformation_type))
+
             else:
                 raise NotImplementedError
 
-        for (col_name, trans_type) in special_cols:
-            df = _SpecialSpandaColumn._apply_special_postprocess(df, col_name, trans_type)
+        for (special_col_name, trans_type) in special_cols:
+            df = _SpecialSpandaColumn._apply_special_postprocess(df=df, col_name=special_col_name,
+                                                                 trans_type=trans_type,
+                                                                 metadata=metadata[special_col_name],
+                                                                 all_col_names=col_names)
 
         return df[col_names]
 

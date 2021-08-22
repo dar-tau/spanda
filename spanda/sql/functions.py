@@ -18,12 +18,14 @@ def _elementwise_apply(f: Callable):
 
 
 # functions
-def col(name: str) -> Column:
+def col(name: str) -> Union[Column, _SpecialSpandaColumn]:
     """
     At its basest form - creates a column object with this name.
     """
     if name == "*":
-        return Column._transformColumn("*", lambda df: df.apply(lambda x: tuple(x), axis='columns'))
+        return _SpecialSpandaColumn(name='*',
+                                    transformation_type=_SpecialSpandaColumn.EXPLODE_COLS_TYPE,
+                                    extra_data='*')
 
     # handle subfields
     field_names = name.split('.')
@@ -635,7 +637,8 @@ def explode(col_name: str) -> _SpecialSpandaColumn:
     Explodes list-like entries to rows
     """
     return _SpecialSpandaColumn(name=f"EXPLODE(`{col_name}`)",
-                                transformation_type=_SpecialSpandaColumn.EXPLODE_ROWS_TYPE, transformed_col=col_name)
+                                transformation_type=_SpecialSpandaColumn.EXPLODE_ROWS_TYPE,
+                                extra_data=col_name)
 
 
 min = _min
