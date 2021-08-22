@@ -1,8 +1,43 @@
 import re
+from collections import OrderedDict
 
 import pandas as pd
 from spanda.core.typing import *
 from spanda.core.utils import wrap_col_args
+
+
+class SpandaStruct:
+    def __init__(self, values: Sequence, names=None):
+        assert (names is None) or (len(names) == len(values)), "if field names are specified they should match field" \
+                                                               " values in the number of parameters"
+        if names is None:
+            names = list(range(len(values)))
+        self._struct_keys = tuple(names)
+        self._struct_vals = tuple(values)
+
+    def __iter__(self):
+        def _my_iter():
+            for i in range(len(self)):
+                yield self[i]
+        return _my_iter()
+
+    def __len__(self):
+        return len(self._struct_vals)
+
+    def __repr__(self):
+        return str(self._struct_vals)
+
+    def __getitem__(self, item):
+        assert isinstance(item, int), "SpandaStruct does not take in field names but only ints at the moments"
+        return self._struct_vals[item]
+
+    @staticmethod
+    def _get_field(struct: 'SpandaStruct', field_name: str):
+        assert field_name in struct._struct_keys, f'`{field_name}` is not in struct'
+        idx = struct._struct_keys.index(field_name)
+        # TODO: need to alert on duplicate keys but we can't disallow them because
+        #       we must also support them (for e.g., F.array(..) internal implementation)
+        return struct._struct_vals[idx]
 
 
 def udf(func: Callable) -> Callable:
@@ -169,6 +204,13 @@ class Column:
         # TODO: assert string
         return self._simpleUnaryTransformColumn(f'CONTAINS ("{other}") ',
                                                 lambda x: other in x)
+
+    def getField(self, name: str) -> 'Column':
+        """
+        Get the field of a SpandaStruct by the name `name`
+        """
+        full_name = Column.getName(self) + "." + name
+        return self.apply(lambda x: SpandaStruct._get_field(x, name)).alias(full_name)
 
     # operators
     def __eq__(self, other):

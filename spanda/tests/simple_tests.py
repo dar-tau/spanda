@@ -4,43 +4,33 @@ from .. import sql
 import pytest
 F = sql.functions
 
+
+def _compare_to_json(inp, outp):
+    return inp.toPandas().to_json() == outp
+
 @pytest.fixture
-def df():
-    return pd.DataFrame({'a': [1,2,3,3], 'b':[0, 0,-1, 0], 'x': [10, 0, 1,4], 'c': [7,0,0,0],
+def sdf():
+    df = pd.DataFrame({'a': [1,2,3,3], 'b':[0, 0,-1, 0], 'x': [10, 0, 1,4], 'c': [7,0,0,0],
                          'y': [0, 0, 1, 3]}, index=['A', 'B', 'C', 'D'])
-
-
-@pytest.fixture
-def sdf(df):
     return DataFrameWrapper(df)
 
 
 @pytest.fixture
-def df2():
-    return pd.DataFrame({'a': [1,-1,-2,-7], 'c':[7,8,9,1], 'z': ['a', 'b', 'c', 'd'], 'w': ['0', '1', '2', '3']}, 
+def sdf2():
+    df2 = pd.DataFrame({'a': [1,-1,-2,-7], 'c':[7,8,9,1], 'z': ['a', 'b', 'c', 'd'], 'w': ['0', '1', '2', '3']}, 
                         index=list("ABCD"))
-
-
-@pytest.fixture
-def sdf2(df2):
     return DataFrameWrapper(df2)
 
 
 @pytest.fixture
-def df3():
-    return pd.DataFrame({'a': [1,2,3], 'b':[0, 0,-1], 'c': [1, 2, 3]}, index=['A', 'D',  'B'])
-
-@pytest.fixture
-def sdf3(df3):
+def sdf3():
+    df3 = pd.DataFrame({'a': [1,2,3], 'b':[0, 0,-1], 'c': [1, 2, 3]}, index=['A', 'D',  'B'])
     return DataFrameWrapper(df3)
 
 
 @pytest.fixture
-def df4():
-    return pd.DataFrame({'b':[0, 1,-1], 'a': [1,2,3]}, index=['A', 'D', 'B'])
-
-@pytest.fixture
-def sdf4(df4):
+def sdf4():
+    df4 = pd.DataFrame({'b':[0, 1,-1], 'a': [1,2,3]}, index=['A', 'D', 'B'])
     return DataFrameWrapper(df4)
 
 
@@ -53,9 +43,9 @@ def test_arrays_zip(sdf3):
     output = '{"ARRAYS_ZIP([a, b, c], [b, c, a], [c, c, c])":'\
              '{"A":[[1,0,1],[0,1,1],[1,1,1]],"D":[[2,0,2],[0,2,2],[2,2,2]],"B":[[3,-1,3],[-1,3,3],[3,3,3]]}}'
     
-    assert (sdf3
-            .select(F.arrays_zip(F.array('a', 'b', 'c'), F.array('b', 'c', 'a'), F.array('c', 'c', 'c')))
-            .toPandas().to_json() == output)
+    inputs = sdf3.select(F.arrays_zip(F.array('a', 'b', 'c'), F.array('b', 'c', 'a'), F.array('c', 'c', 'c')))
+    
+    assert _compare_to_json(inputs, output)
     
 
 def test_rollup(sdf):
@@ -64,7 +54,9 @@ def test_rollup(sdf):
              '{"0":1.0,"1":0.0,"2":3.0,"3":0.0,"4":null,"5":null,"6":null,"7":null,"8":null,"9":null},"SUM (x)":'\
              '{"0":1,"1":0,"2":4,"3":10,"4":1,"5":4,"6":10,"7":1,"8":14,"9":15}}'
     
-    assert (sdf.rollup('b','c', 'y').agg(F.sum('x')).toPandas().to_json() == output)
+    inputs = sdf.rollup('b','c', 'y').agg(F.sum('x'))
+    
+    assert _compare_to_json(inputs, output)
 
 
 def test_cube(sdf):
@@ -77,4 +69,12 @@ def test_cube(sdf):
               '{"0":1,"1":0,"2":4,"3":10,"4":1,"5":0,"6":4,"7":10,"8":1,"9":10,"10":4,"11":1,"12":10,"13":4,'\
               '"14":1,"15":4,"16":10,"17":5,"18":10,"19":1,"20":14,"21":15}}'
     
-    assert (sdf.cube('b','c', 'y').agg(F.sum('x')).toPandas().to_json() == output)
+    inputs = sdf.cube('b','c', 'y').agg(F.sum('x'))
+    
+    assert _compare_to_json(inputs, output)
+
+    
+def test_struct_fields(sdf3):
+    inputs = sdf3.select('a', F.struct('b', 'c').alias('A')).select('A.b', 'a')
+    output = '{"b":{"A":0,"D":0,"B":-1},"a":{"A":1,"D":2,"B":3}}'
+    assert _compare_to_json(inputs, output)

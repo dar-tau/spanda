@@ -3,7 +3,7 @@ import warnings
 import pandas as pd
 from spanda.core.typing import *
 from spanda.core.utils import wrap_col_args
-from spanda.sql.column import Column, AggColumn, WindowTransformationColumn, udf
+from spanda.sql.column import Column, AggColumn, WindowTransformationColumn, udf, SpandaStruct
 
 
 # helper functions
@@ -20,11 +20,20 @@ def _elementwise_apply(f: Callable):
 # functions
 def col(name: str) -> Column:
     """
-    Creates a column object with this name
+    At its basest form - creates a column object with this name.
     """
     if name == "*":
         return Column._transformColumn("*", lambda df: df.apply(lambda x: tuple(x), axis='columns'))
-    return Column(name)
+
+    # handle subfields
+    field_names = name.split('.')
+    name = field_names[0]
+    field_names = field_names[1:]
+    cur_col = Column(name)
+    for f_name in field_names:
+        cur_col = cur_col.getField(f_name).alias(f_name)
+
+    return cur_col
 
 
 def lit(value: Any):
@@ -328,7 +337,7 @@ def concat(*cols: Column) -> Column:
         return sum(xs)
 
     return (struct(*cols).apply(_concat_with_assert)
-            .alias(f'CONCAT("{str(sep)}", {", ".join([Column.getName(c) for c in cols])})'))
+            .alias(f'CONCAT({", ".join([Column.getName(c) for c in cols])})'))
 
 
 def concat_ws(sep: str, *cols: Column) -> Column:
@@ -474,7 +483,9 @@ def struct(*cols: Column) -> Column:
     """
     Takes in columns and returns a single struct column
     """
-    return udf(lambda *x: tuple(x))(*cols).alias(f"({', '.join([Column.getName(col) for col in cols])})")
+    col_names = [Column.getName(col) for col in cols]
+    # TODO: not all col_names are appropriate as field names - handle that somehow
+    return udf(lambda *x: SpandaStruct(x, col_names))(*cols).alias(f"({', '.join(col_names)})")
 
 
 # aggregate functions
