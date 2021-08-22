@@ -5,8 +5,10 @@ import pytest
 F = sql.functions
 
 
-def _compare_to_json(inp, outp):
-    return inp.toPandas().to_json() == outp
+def _compare_to_json(inp, outp, to_pandas=True):
+    if to_pandas:
+        inp = inp.toPandas()
+    return inp.to_json() == outp
 
 @pytest.fixture
 def sdf():
@@ -78,3 +80,9 @@ def test_struct_fields(sdf3):
     inputs = sdf3.select('a', F.struct('b', 'c').alias('A')).select('A.b', 'a')
     output = '{"b":{"A":0,"D":0,"B":-1},"a":{"A":1,"D":2,"B":3}}'
     assert _compare_to_json(inputs, output)
+    
+    
+def test_explode(sdf3):
+    inputs = sdf3.select(F.array('a','b').alias('tmp')).select(F.explode('tmp').alias('x')).toPandas().reset_index()
+    output = '{"index":{"0":"A","1":"A","2":"D","3":"D","4":"B","5":"B"},"x":{"0":1,"1":0,"2":2,"3":0,"4":3,"5":-1}}'
+    assert _compare_to_json(inputs, output, to_pandas = False)

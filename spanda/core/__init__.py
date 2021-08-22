@@ -1,7 +1,8 @@
 from collections import defaultdict
 
 import pandas as pd
-from ..sql.functions import Column, AggColumn, min as F_min, max as F_max, col
+
+from ..sql.functions import Column, AggColumn, min as F_min, max as F_max, col, _SpecialSpandaColumn
 from spanda.core.typing import *
 from .utils import wrap_col_args, wrap_dataframe
 
@@ -151,14 +152,20 @@ class DataFrameWrapper:
 
         df = self._df
         col_names = []
+        special_cols = []
         for col in cols:
             if isinstance(col, Column):
-                df = df.assign(**{col.name: Column._apply(col, df)})
-                col_names.append(col.name)
-            elif isinstance(col, str):
-                col_names.append(col)
+                df = df.assign(**{col._name: Column._apply(col, df)})
+                col_names.append(col._name)
+            elif isinstance(col, _SpecialSpandaColumn):
+                df = df.assign(**{col._name: _SpecialSpandaColumn._apply_special(col, df)})
+                col_names.append(col._name)
+                special_cols.append((col._name, col._transformation_type))
             else:
                 raise NotImplementedError
+
+        for (col_name, trans_type) in special_cols:
+            df = _SpecialSpandaColumn._apply_special_postprocess(df, col_name, trans_type)
 
         return df[col_names]
 

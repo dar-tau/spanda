@@ -3,7 +3,7 @@ import warnings
 import pandas as pd
 from spanda.core.typing import *
 from spanda.core.utils import wrap_col_args
-from spanda.sql.column import Column, AggColumn, WindowTransformationColumn, udf, SpandaStruct
+from spanda.sql.column import (Column, AggColumn, WindowTransformationColumn, udf, SpandaStruct, _SpecialSpandaColumn)
 
 
 # helper functions
@@ -627,6 +627,15 @@ def rank() -> WindowTransformationColumn:
     # TODO: check
     return WindowTransformationColumn(name=f"RANK", orig_col=None,
                                       op=lambda col, grp, pos: list(col.loc[grp]).index(col[grp[pos]]))
+
+
+# special functions
+def explode(col_name: str) -> _SpecialSpandaColumn:
+    """
+    Explodes list-like entries to rows
+    """
+    return _SpecialSpandaColumn(name=f"EXPLODE(`{col_name}`)",
+                                transformation_type=_SpecialSpandaColumn.EXPLODE_ROWS_TYPE, transformed_col=col_name)
 
 
 min = _min

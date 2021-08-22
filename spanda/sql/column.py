@@ -1,9 +1,45 @@
 import re
-from collections import OrderedDict
 
+from copy import deepcopy
 import pandas as pd
 from spanda.core.typing import *
 from spanda.core.utils import wrap_col_args
+
+
+class _SpecialSpandaColumn:
+    """
+    This kind of column is created for special column transformations that do not make sense as standard columns
+    because the flexibility allowed by usual columns do not apply to them. Such columns include exploded rows which can
+    only come inside a select operation (at least in Spanda). These columns do not allow any further transformation
+    other than simple ones such as name aliases. They are "leaf-transformations" that can only appear in a select(...)
+    clause or its derivatives (such as withColumn(...)).
+    """
+
+    EXPLODE_ROWS_TYPE = 1
+
+    def __init__(self, transformation_type, transformed_col, name):
+        self._name = name
+        self._transformation_type = transformation_type
+        self._transformed_col = transformed_col
+
+    def alias(self, name):
+        new_copy = deepcopy(self)
+        new_copy._name = name
+        return new_copy
+
+    @staticmethod
+    def _apply_special(col, df):
+        if col._transformation_type == _SpecialSpandaColumn.EXPLODE_ROWS_TYPE:
+            return df[col._transformed_col]
+        else:
+            raise NotImplementedError
+
+    @staticmethod
+    def _apply_special_postprocess(df, col_name, trans_type):
+            if trans_type == _SpecialSpandaColumn.EXPLODE_ROWS_TYPE:
+                return df.explode([col_name])
+            else:
+                raise NotImplementedError
 
 
 class SpandaStruct:
@@ -59,31 +95,33 @@ class Column:
     """
 
     def __init__(self, name: Optional[str]):
-        self.name = name
-        self.op = lambda df: df[name]
+        self._name = name
+        self._op = lambda df: df[name]
 
-    def setOp(self, op: Callable):
-        self.op = op
+    def _set_op(self, op: Callable):
+        self._op = op
 
     @staticmethod
     def getName(col: Union['Column', str]) -> str:
         if isinstance(col, Column):
-            return col.name
+            return col._name
         else:
             return str(col)
 
     @staticmethod
     def _apply(col: 'Column', df: pd.DataFrame) -> Union[pd.Series, Any]:
         if isinstance(col, Column):
-            return col.op(df)
+            return col._op(df)
+        elif isinstance(col, _SpecialSpandaColumn):
+            assert False, f"cannot apply anything special columns such as {Column.getName(col)}"
         else:
             return col
 
     @staticmethod
     def _transformColumn(name: str, operation: Callable) -> 'Column':
         col = Column(None)
-        col.name = name
-        col.op = operation
+        col._name = name
+        col._op = operation
         return col
 
     def _simpleBinaryTransformColumn(self, opname: str, opfunc: Callable, other: Union['Column', Any],
@@ -96,14 +134,14 @@ class Column:
         return Column._transformColumn(f"({opname}{Column.getName(self)})", lambda df: opfunc(Column._apply(self, df)))
 
     def __repr__(self):
-        return f"<Column {self.name}>"
+        return f"<Column {self._name}>"
 
     def alias(self, name):
         """
         Return column with new name
         """
 
-        return Column._transformColumn(name, self.op)
+        return Column._transformColumn(name, self._op)
 
     def between(self, start, end):
         """
@@ -287,7 +325,7 @@ class AggColumn:
             return pd.Series(data=data, index=inputs.index)
 
         col = Column(name=f"{AggColumn.getName(self)} OVER ({window_spec._name})")
-        col.setOp(f)
+        col._set_op(f)
         return col
 
 
@@ -313,5 +351,5 @@ class WindowTransformationColumn(AggColumn):
             return pd.Series(data=data, index=inputs.index)
 
         col = Column(name=f"{AggColumn.getName(self)} OVER ({window_spec._name})")
-        col.setOp(f)
+        col._set_op(f)
         return col

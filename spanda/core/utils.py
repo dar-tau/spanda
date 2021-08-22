@@ -15,6 +15,8 @@ def wrap_dataframe(func: Callable) -> Callable:
 def wrap_col_args(func: Callable) -> Callable:
     @functools.wraps(func)
     def f(*args, **kwargs):
+        # notice we have other types of columns (such as _SpecialSpandaColumn so we must keep them as is if they are
+        # in the arguments and not apply F.col(..) - this is why we whitelist str, instead of blacklisting not column)
         new_args = [F.col(a) if isinstance(a, str) else a for a in args]
         df = func(*new_args, **kwargs)
         return df
